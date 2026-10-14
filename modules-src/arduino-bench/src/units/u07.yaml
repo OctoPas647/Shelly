@@ -1,0 +1,241 @@
+id: u07
+number: 7
+title: Sensing the World
+tagline: The ADC, resistive sensors, calibration, filtering and hysteresis
+minutes: 110
+difficulty: 3
+objectives:
+  - "Know the ADC's resolution, speed, references and quantisation error"
+  - "Use ratiometric dividers so the supply voltage cancels out"
+  - "Turn a thermistor's resistance into °C with the Beta equation, and calibrate Beta yourself"
+  - "Filter noisy readings and stop a threshold from chattering with hysteresis"
+
+study:
+  body: |
+    ### The ATmega's ADC in numbers
+    - **10 bits** → 1024 levels. With the 5 V reference, 1 LSB = 5/1024 = **4.88 mV**.
+    - **Successive approximation:** it tries the MSB, compares, keeps or drops it, then the next bit — 10 comparisons, like a binary search.
+    - Default ADC clock 125 kHz, 13 clocks per conversion → ~104 µs, so **analogRead() takes about 0.11 ms** (~9 000 readings/s). Capstone 2 speeds this up.
+    - **Quantisation error:** ±½ LSB, because a continuous voltage gets rounded to a step.
+    - **References:** `DEFAULT` (AVcc, ~5 V), `INTERNAL` (1.1 V bandgap: 1.07 mV per step, great for small signals), `EXTERNAL` (whatever you put on AREF).
+
+    ### Ratiometric measurement
+    Put a resistive sensor in a divider fed from the **same** 5 V that the ADC uses as reference. Then
+
+    ADC / 1024 = R_sensor / (R_fixed + R_sensor)
+
+    and **the supply voltage cancels out completely**. A sagging USB rail can't fool you. Solving for the sensor:
+
+    **R_sensor = R_fixed · ADC / (1024 − ADC)** (sensor on the bottom)
+
+    Choose R_fixed ≈ the sensor's resistance in the middle of the range you care about; that's where the divider is most sensitive.
+
+    ### NTC thermistors and the Beta equation
+    An NTC's resistance falls as temperature rises — and not linearly. The **Beta model** is good to a fraction of a degree over a few tens of degrees:
+
+    **1/T = 1/T₀ + (1/B) · ln(R/R₀)**, temperatures in **kelvin** (T₀ = 298.15 K = 25 °C, R₀ = 10 kΩ for your part)
+
+    B is usually 3435 or 3950 for 10 kΩ parts, but kits rarely tell you which. So you'll **measure** it: record R at two known temperatures T₁, T₂ and
+
+    **B = ln(R₁/R₂) / (1/T₁ − 1/T₂)**
+
+    (The Steinhart-Hart equation adds terms for higher accuracy over wide ranges.)
+
+    ### Light-dependent resistors
+    CdS cells go from ~1 MΩ in the dark to ~1 kΩ in bright light, roughly logarithmically, and they're **slow** — tens of ms to react, longer to recover from bright light. Perfect for night lights; a real limitation for the optical data link in Unit 11.
+
+    ### Filtering noise
+    - **Averaging N readings** reduces random noise by **√N** (16 readings → 4× less noise).
+    - **Exponential moving average:** `smooth += α · (raw − smooth)`, with α between 0 and 1. Small α = smoother but slower. It's the digital twin of the RC low-pass from Unit 3: one memory, no array.
+
+    ### Hysteresis
+    A single threshold plus a noisy signal sitting right at it = output chattering on and off. Use **two thresholds**: switch ON below the low one, OFF above the high one. Between them, keep the previous state. Your thermostat at home does exactly this.
+  formulas:
+    - {name: "ADC step size", formula: "LSB = Vref / 1024"}
+    - {name: "Sensor from divider (sensor at bottom)", formula: "R = R_fixed · ADC / (1024 − ADC)"}
+    - {name: "Beta equation", formula: "1/T = 1/T₀ + ln(R/R₀)/B   (kelvin)"}
+    - {name: "Beta from two points", formula: "B = ln(R₁/R₂) / (1/T₁ − 1/T₂)"}
+    - {name: "Averaging", formula: "noise ÷ √N"}
+    - {name: "Exponential moving average", formula: "y ← y + α(x − y)"}
+  media:
+    - {image: u07_thermistor, caption: "Ratiometric thermistor divider: R_ntc = 10 kΩ · ADC / (1024 − ADC)."}
+    - {image: u07_night_light, caption: "LDR on top: more light → higher reading. LED on D9."}
+
+labs:
+  - id: lab1
+    title: Calibrated Thermometer
+    goal: Build a thermistor thermometer, measure its Beta yourself, and see self-heating and filtering.
+    minutes: 60
+    parts:
+      - "10 kΩ NTC thermistor, 10 kΩ resistor"
+      - "A glass of ice water + a glass of warm water (not boiling!), a reference thermometer or DHT11"
+      - "Arduino Uno, multimeter"
+    schematic: u07_thermistor
+    sketch: u07_thermistor
+    wiring:
+      - ["5V", "10 kΩ fixed resistor → A0 node"]
+      - ["A0 node", "thermistor → GND"]
+    steps:
+      - type: numeric
+        q: "At exactly 25 °C the thermistor is 10 kΩ. Predict analogRead(A0)."
+        answer: 512
+        calc: "1024 * 10e3 / (10e3 + 10e3)"
+        unit: counts
+        tol: 1%
+        explain: "Equal resistors → half scale → 512."
+      - type: record
+        q: "Measure the loose thermistor's resistance at room temperature with your meter."
+        unit: kΩ
+      - "Build the divider, upload u07_thermistor, open the Serial Plotter. Watch raw_C vs smooth_C."
+      - type: numeric
+        q: "With B = 3950, what resistance should the thermistor have at 0 °C (ice water)?"
+        answer: 33.62
+        calc: "10 * exp(3950 * (1/273.15 - 1/298.15))"
+        unit: kΩ
+        tol: 2%
+        explain: "R = 10 kΩ · e^(B(1/T − 1/T₀)) = 10 · e^(3950 × 0.000307) ≈ 33.6 kΩ."
+      - "Put the thermistor in a small plastic bag (keeps the leads dry) and hold it in stirred ice water for a minute."
+      - type: measure
+        q: "R_ntc_ohm reading in ice water (convert to kΩ)."
+        expected: 33.62
+        calc: "10 * exp(3950 * (1/273.15 - 1/298.15))"
+        unit: kΩ
+        tol: 15%
+        explain: "If your part is a B = 3435 type you'll see ~28.7 kΩ instead. That's why we calibrate."
+      - type: record
+        q: "R in warm water (also record the reference thermometer's temperature)."
+        unit: kΩ
+      - type: record
+        q: "Your Beta from the two points: B = ln(R_ice/R_warm) / (1/273.15 − 1/T_warm[K]). Type it into the Serial Monitor."
+        unit: K
+      - type: mcq
+        q: "Hold the thermistor between two fingers. raw_C jumps instantly but smooth_C follows slowly. Why?"
+        options:
+          - "smooth_C is broken"
+          - "The exponential moving average (α = 0.1) only moves 10 % of the way to each new reading"
+          - "The thermistor has two outputs"
+          - "Serial is too slow"
+        answer: 1
+        explain: "That lag is the price of smoothing — exactly like a bigger RC."
+    observe: |
+      Room temperature should read within ~1 °C of your reference after calibration. Ratiometric means USB voltage changes barely move the reading — try a different USB port and see.
+    troubleshooting:
+      - ["Temperature goes DOWN when you warm it", "Thermistor and fixed resistor swapped (thermistor on top). Swap them or flip the formula."]
+      - ["'Out of range'", "A0 floating or shorted — check both resistor connections."]
+      - ["Reading 2–3 °C high and creeping up", "Self-heating or your fingers nearby. 0.25 mA in 10 kΩ is ~0.6 mW — small but not zero."]
+    challenges:
+      - "Swap R_FIXED for 33 kΩ (if you have it). Is the thermometer more sensitive near 0 °C now? Why?"
+      - "Use INTERNAL (1.1 V) reference with a divider designed for it and compare resolution in °C per count."
+
+  - id: lab2
+    title: Night Light with Hysteresis
+    goal: See a single threshold chatter, then fix it with two thresholds.
+    minutes: 30
+    parts:
+      - "LDR, 10 kΩ, LED + 220 Ω"
+    schematic: u07_night_light
+    sketch: u07_night_light
+    wiring:
+      - ["5V", "LDR → A0 node"]
+      - ["A0 node", "10 kΩ → GND"]
+      - ["D9", "220 Ω → LED → GND"]
+    steps:
+      - "Upload u07_night_light and open the Serial Plotter."
+      - type: record
+        q: "Light level with the LDR uncovered (room light)."
+        unit: counts
+      - type: record
+        q: "Light level with the LDR covered by your finger."
+        unit: counts
+      - "Adjust ON_BELOW and OFF_ABOVE in the code so they sit between your two readings (e.g. 1/3 and 1/2 of the way up)."
+      - "Send 'h' to DISABLE hysteresis. Slowly move your hand so the light level hovers right at the threshold for 10 s."
+      - type: record
+        q: "toggles_10s WITHOUT hysteresis."
+        unit: toggles
+      - "Send 'h' again to ENABLE hysteresis and repeat."
+      - type: record
+        q: "toggles_10s WITH hysteresis."
+        unit: toggles
+    observe: |
+      Without hysteresis the LED flickers whenever the light hovers at the threshold — mains-powered room lights add 100 Hz ripple on top. With a 100-count band it switches once and stays.
+    troubleshooting:
+      - ["Reading barely changes", "LDR on the bottom instead of the top, or 10 kΩ is far from your LDR's range — try 4.7 kΩ or 47 kΩ."]
+    challenges:
+      - "Replace the on/off logic with brightness: map the light level to analogWrite() on D9 so the LED fades in as the room gets darker."
+
+quiz:
+  - type: numeric
+    q: "With the INTERNAL 1.1 V reference, what is one ADC step in mV?"
+    answer: 1.074
+    calc: "1.1 / 1024 * 1000"
+    unit: mV
+    tol: 1%
+    explain: "1.1/1024 = 1.07 mV — 4.5× finer than with 5 V."
+  - type: numeric
+    q: "Divider: 10 kΩ fixed on top, sensor on the bottom. analogRead = 300. Sensor resistance?"
+    answer: 4144
+    calc: "10e3 * 300 / (1024 - 300)"
+    unit: Ω
+    tol: 1%
+    explain: "10 000 × 300 / 724 ≈ 4.14 kΩ."
+  - type: numeric
+    q: "Calibrate Beta: R = 10.0 kΩ at 25 °C and R = 3.60 kΩ at 50 °C. B = ?"
+    answer: 3937
+    calc: "log(10.0/3.60) / (1/298.15 - 1/323.15)"
+    unit: K
+    tol: 1%
+    explain: "ln(2.778) / (0.0033540 − 0.0030945) = 1.0217 / 0.00025948 ≈ 3937 K."
+  - type: numeric
+    q: "Using B = 3950, R₀ = 10 kΩ at 25 °C: the thermistor reads 6.41 kΩ. Temperature in °C?"
+    answer: 35.35
+    calc: "1 / (1/298.15 + log(6.41/10) / 3950) - 273.15"
+    unit: °C
+    tol: 1%
+    explain: "1/T = 0.0033540 + ln(0.641)/3950 = 0.0032414 → T = 308.5 K ≈ 35.3 °C."
+  - type: mcq
+    q: "Why is a ratiometric divider insensitive to the exact 5 V supply?"
+    options:
+      - "The ADC ignores the supply"
+      - "The sensor voltage and the ADC reference both scale with the same supply, so the ratio — and the reading — stays the same"
+      - "Because 10 kΩ resistors are precise"
+      - "It isn't; it's very sensitive"
+    answer: 1
+    explain: "Both numerator and denominator move together."
+  - type: numeric
+    q: "You average 64 readings instead of 1. By what factor does random noise drop?"
+    answer: 8
+    calc: "64 ** 0.5"
+    unit: "×"
+    tol: 0
+    explain: "√64 = 8."
+  - type: mcq
+    q: "What is hysteresis for in the night light?"
+    options:
+      - "To make the LED brighter"
+      - "Two thresholds so noise near one threshold can't make the output chatter"
+      - "To speed up the ADC"
+      - "To calibrate the LDR"
+    answer: 1
+    explain: "Same idea as the Schmitt trigger in Unit 5, done in software."
+  - type: truefalse
+    q: "An exponential moving average with α = 0.05 reacts faster than one with α = 0.5."
+    answer: false
+    explain: "Smaller α = smaller step towards each new reading = smoother and slower."
+  - type: numeric
+    q: "About how many analogRead() calls can a default Uno do per second (≈ 0.11 ms each)?"
+    answer: 9000
+    calc: "1 / 0.11e-3"
+    unit: "/s"
+    tol: 10%
+    explain: "1/0.11 ms ≈ 9 000 per second."
+
+flashcards:
+  - ["Uno ADC", "10 bit, 0–1023, ~0.11 ms per analogRead()"]
+  - ["1 LSB at 5 V / 1.1 V reference", "4.88 mV / 1.07 mV"]
+  - ["Ratiometric", "Sensor divider and ADC reference from the same supply → supply cancels"]
+  - ["Sensor on bottom of divider", "R = R_fixed · ADC / (1024 − ADC)"]
+  - ["Beta equation", "1/T = 1/T₀ + ln(R/R₀)/B, T in kelvin"]
+  - ["NTC", "Negative temperature coefficient: hotter → lower resistance"]
+  - ["Averaging N samples", "Noise drops by √N"]
+  - ["EMA filter", "y += α(x − y); small α = smooth & slow"]
+  - ["Hysteresis", "Separate ON and OFF thresholds; hold state in between"]

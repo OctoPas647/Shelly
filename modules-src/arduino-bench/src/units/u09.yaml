@@ -1,0 +1,234 @@
+id: u09
+number: 9
+title: The 555 and the Frequency Counter
+tagline: Build an oscillator with no code — then measure it two different ways
+minutes: 110
+difficulty: 4
+objectives:
+  - "Explain how a 555 astable oscillates using two comparators and a flip-flop"
+  - "Calculate frequency and duty cycle from R1, R2 and C — and measure the real thing"
+  - "See the timing capacitor bounce between 1/3 and 2/3 of Vcc"
+  - "Compare gate counting and period measurement and know when each wins"
+
+study:
+  body: |
+    ### Inside the 555
+    Three equal resistors from Vcc to GND make two reference voltages: **⅓ Vcc** and **⅔ Vcc**. Two comparators watch the timing capacitor:
+    - When the cap rises above **⅔ Vcc** (THR, pin 6) → the internal flip-flop resets → output LOW, and the **discharge transistor** (DIS, pin 7) turns on.
+    - When the cap falls below **⅓ Vcc** (TRG, pin 2) → flip-flop sets → output HIGH, discharge transistor off.
+
+    ### The astable circuit
+    - **Charging:** through R1 + R2 from ⅓ to ⅔ Vcc. The output is HIGH.
+    - **Discharging:** through R2 only, into pin 7, from ⅔ back to ⅓ Vcc. The output is LOW.
+
+    Going from ⅓ to ⅔ of the way (or back) on an RC curve always takes τ·ln 2 = **0.693·τ** — whatever Vcc is. So:
+
+    - **t_high = 0.693 · (R1 + R2) · C**
+    - **t_low = 0.693 · R2 · C**
+    - **f = 1 / (0.693 · (R1 + 2·R2) · C) ≈ 1.44 / ((R1 + 2R2)·C)**
+    - **duty = (R1 + R2) / (R1 + 2R2)** — always above 50 % in this basic circuit (a diode across R2 fixes that)
+
+    With R1 = 1 kΩ, R2 = 10 kΩ: C = 10 µF gives ~6.9 Hz (a visible blink); C = 100 nF gives ~687 Hz (an audible tone). Same circuit, one part swapped.
+
+    Pin 4 (RESET) goes to Vcc. Pin 5 (CTRL) exposes the ⅔ reference — a **10 nF** cap to GND keeps noise out of it. The classic NE555 is bipolar, pulls ~3–10 mA by itself and its output stage can source/sink ~200 mA. The CMOS 7555/TLC555 sips µA and swings closer to the rails.
+
+    ### Measuring frequency: two methods
+    **Gate counting:** count rising edges for a fixed gate time (1 s). Result = count / gate. Resolution is **±1 count**, so ±1 Hz with a 1 s gate. At 687 Hz that's 0.15 % — excellent. At 6.9 Hz it's ±15 % — useless.
+
+    **Period (reciprocal) measurement:** time one cycle with a fast clock (pulseIn() measures in µs). Resolution is a few µs per period. At 6.9 Hz (145 ms period) that's 0.003 %; at 100 kHz (10 µs) it's terrible. It also gives you the **duty cycle**.
+
+    Real counters do both and pick the better one automatically — so will your Bench Meter in Capstone 1.
+
+    ### Why the measured value won't match exactly
+    Electrolytics are ±20 %, ceramics ±10–20 % (cheap ones far worse), resistors ±5 %. A 555 built from kit parts lands within ~20 % of the formula. The formula is the design target, the meter tells you the truth.
+  formulas:
+    - {name: "555 high time", formula: "t_high = 0.693·(R1 + R2)·C"}
+    - {name: "555 low time", formula: "t_low = 0.693·R2·C"}
+    - {name: "555 frequency", formula: "f = 1.44 / ((R1 + 2R2)·C)"}
+    - {name: "555 duty cycle", formula: "D = (R1 + R2)/(R1 + 2R2)"}
+    - {name: "Gate counting resolution", formula: "Δf = ±1 / T_gate"}
+  media:
+    - {image: u09_555, caption: "Classic 555 astable. Use C = 10 µF to watch it blink, 100 nF to hear it and count it."}
+
+labs:
+  - id: lab1
+    title: Watch the Timing Capacitor
+    goal: Build a slow 555 oscillator and see the capacitor voltage bounce between the two comparator thresholds.
+    minutes: 45
+    parts:
+      - "NE555, 1 kΩ (R1), 10 kΩ (R2), 10 µF electrolytic, 10 nF (CTRL)"
+      - "LED + 330 Ω"
+      - "Arduino Uno"
+    schematic: u09_555
+    sketch: u09_cap_plotter
+    wiring:
+      - ["555 pins 4 and 8", "5V"]
+      - ["555 pin 1", "GND (shared with Arduino)"]
+      - ["R1", "5V → pin 7"]
+      - ["R2", "pin 7 → pin 6"]
+      - ["pins 6 and 2", "tied together, 10 µF + to them, − to GND"]
+      - ["pin 5", "10 nF → GND"]
+      - ["pin 3 (OUT)", "330 Ω → LED → GND"]
+      - ["pin 6/2 node", "A0"]
+    steps:
+      - type: numeric
+        q: "Predict the blink frequency with R1 = 1 kΩ, R2 = 10 kΩ, C = 10 µF."
+        answer: 6.87
+        calc: "1 / (log(2) * (1e3 + 2 * 10e3) * 10e-6)"
+        unit: Hz
+        tol: 2%
+        explain: "1 / (0.693 × 21 kΩ × 10 µF) = 6.87 Hz."
+      - type: numeric
+        q: "Predict the duty cycle."
+        answer: 52.4
+        calc: "(1e3 + 10e3) / (1e3 + 2 * 10e3) * 100"
+        unit: "%"
+        tol: 1%
+        explain: "11/21 = 52.4 % — just over half, as the formula always gives."
+      - "Build it. The LED should blink fast-ish without any code at all. Then connect pin 6/2 to A0, upload u09_cap_plotter and open the Serial Plotter."
+      - "Send 'm' to switch to the stats report."
+      - type: measure
+        q: "Minimum capacitor voltage (stats)."
+        expected: 1.667
+        calc: "5 / 3"
+        unit: V
+        tol: 6%
+        explain: "⅓ × 5 V. Scaled by your real Vcc."
+      - type: measure
+        q: "Maximum capacitor voltage (stats)."
+        expected: 3.333
+        calc: "5 * 2 / 3"
+        unit: V
+        tol: 6%
+        explain: "⅔ × 5 V. The 555 is a pair of comparators with exactly these thresholds."
+      - type: measure
+        q: "Frequency reported by the stats mode."
+        expected: 6.87
+        calc: "1 / (log(2) * (1e3 + 2 * 10e3) * 10e-6)"
+        unit: Hz
+        tol: 25%
+        explain: "Your 10 µF is probably not exactly 10 µF (±20 %). Measure it with your Unit 3 meter and recompute!"
+    observe: |
+      The trace is a 'shark fin': it rises exponentially through R1+R2, falls through R2, and turns around precisely at ⅓ and ⅔ of the supply.
+    troubleshooting:
+      - ["LED stuck ON, cap near 0 V", "The cap can't charge: R2 not reaching pin 6, or the capacitor is shorted/backwards."]
+      - ["LED stuck OFF, cap near 5 V", "The cap can't discharge: pin 7 not connected to the R1/R2 junction."]
+      - ["LED off, nothing moves", "Pin 4 (RESET) floating or tied low — it must go to 5 V."]
+      - ["Trace is a mess", "Missing common ground between 555 and Arduino."]
+    challenges:
+      - "Put a 1N4007 across R2 (anode on pin 7). Now charging bypasses R2. What happens to the duty cycle? Derive the new formula."
+
+  - id: lab2
+    title: Two Ways to Count
+    goal: Speed the 555 up to an audible tone and measure it with gate counting and period timing.
+    minutes: 40
+    parts:
+      - "Same 555 circuit, swap C to 100 nF"
+      - "Passive buzzer (optional), 10 kΩ potentiometer (optional)"
+    schematic: u09_555
+    sketch: u09_freq_counter
+    wiring:
+      - ["timing capacitor", "100 nF instead of 10 µF"]
+      - ["555 pin 3 (OUT)", "D2 (plus the LED, which now looks steadily lit)"]
+    steps:
+      - type: numeric
+        q: "Predict f with C = 100 nF."
+        answer: 687
+        calc: "1 / (log(2) * (1e3 + 2 * 10e3) * 100e-9)"
+        unit: Hz
+        tol: 2%
+        explain: "100× smaller C → 100× higher f: 687 Hz."
+      - "Swap the capacitor, connect OUT to D2, upload u09_freq_counter."
+      - type: measure
+        q: "Method B (1 s gate) reading."
+        expected: 687
+        calc: "1 / (log(2) * (1e3 + 2 * 10e3) * 100e-9)"
+        unit: Hz
+        tol: 25%
+        explain: "Ceramic capacitor tolerance dominates. Methods A and B should agree with EACH OTHER to well under 1 %."
+      - type: record
+        q: "Method A duty cycle."
+        unit: "%"
+      - "Put the 10 µF back in (slow version) and compare both methods again."
+      - type: mcq
+        q: "At ~7 Hz, which method is better, and why?"
+        options:
+          - "Gate counting — it counts more edges"
+          - "Period measurement — a 1 s gate only sees ~7 edges (±1 = ±15 %), while one 145 ms period is timed to a few µs"
+          - "They're identical"
+          - "Neither works below 10 Hz"
+        answer: 1
+        explain: "Slow signals: time the period. Fast signals: count over a gate. That's why Capstone 1 switches automatically."
+      - "Optional: a passive buzzer on pin 3 through 100 Ω turns it into a tone. Replace R2 with a 10 kΩ pot in series with 1 kΩ and you have a playable oscillator."
+    observe: |
+      Both methods agree closely at 687 Hz. At 7 Hz, gate counting shows 6 or 7 Hz (jumping by whole hertz) while the period method gives 2 decimals of stable reading.
+    troubleshooting:
+      - ["Method A says 'no signal'", "D2 not connected to pin 3, or the 555 isn't oscillating (check with the LED / 10 µF version)."]
+      - ["Readings vary by ±5 Hz", "Loose breadboard contact on the timing capacitor — it's the most sensitive node."]
+    challenges:
+      - "Measure a capacitor with the 555: put an unknown cap in the C position, measure f, and solve for C. Compare with your Unit 3 capacitance meter."
+
+quiz:
+  - type: numeric
+    q: "R1 = 1 kΩ, R2 = 10 kΩ. What C gives 1 000 Hz? Answer in nF."
+    answer: 68.7
+    calc: "1 / (log(2) * (1e3 + 2 * 10e3) * 1000) * 1e9"
+    unit: nF
+    tol: 2%
+    explain: "C = 1 / (0.693 × 21 kΩ × 1000 Hz) ≈ 68.7 nF. The nearest standard value is 68 nF."
+  - type: numeric
+    q: "For the 10 µF version, how long is the output HIGH in each cycle? (R1 1 kΩ, R2 10 kΩ)"
+    answer: 76.2
+    calc: "log(2) * (1e3 + 10e3) * 10e-6 * 1000"
+    unit: ms
+    tol: 2%
+    explain: "0.693 × 11 kΩ × 10 µF = 76.2 ms."
+  - type: mcq
+    q: "Why can't the basic 555 astable have a duty cycle below 50 %?"
+    options:
+      - "The output stage is asymmetric"
+      - "It charges through R1 + R2 but discharges through R2 alone, so HIGH always lasts longer"
+      - "The comparators are at ⅓ and ⅔"
+      - "Because of the 10 nF on CTRL"
+    answer: 1
+    explain: "t_high ∝ R1 + R2 > t_low ∝ R2. Bypass R2 with a diode while charging to get < 50 %."
+  - type: mcq
+    q: "Which pin of the 555 is the discharge transistor?"
+    options: ["Pin 2", "Pin 5", "Pin 7", "Pin 3"]
+    answer: 2
+    explain: "Pin 7 (DIS) shorts the R1/R2 junction to ground during the LOW phase."
+  - type: numeric
+    q: "Gate counting with a 0.1 s gate. What is the frequency resolution?"
+    answer: 10
+    calc: "1 / 0.1"
+    unit: Hz
+    tol: 0
+    explain: "±1 count per 0.1 s = ±10 Hz. Shorter gate → faster updates but coarser readings."
+  - type: truefalse
+    q: "The 555's ⅓/⅔ thresholds mean its frequency barely changes when the supply voltage changes."
+    answer: true
+    explain: "The thresholds scale with Vcc, and so does the charging current — they cancel, leaving 0.693·RC."
+  - type: numeric
+    q: "Period method: pulseIn returns HIGH = 760 µs and LOW = 693 µs. Frequency?"
+    answer: 688.2
+    calc: "1e6 / (760 + 693)"
+    unit: Hz
+    tol: 1%
+    explain: "1 / 1.453 ms = 688 Hz."
+  - type: order
+    q: "One cycle of the 555 astable, starting with the output just gone HIGH."
+    items:
+      - "Discharge transistor off; C charges through R1 + R2"
+      - "C reaches ⅔ Vcc; upper comparator resets the flip-flop"
+      - "Output LOW, discharge transistor on; C discharges through R2"
+      - "C reaches ⅓ Vcc; lower comparator sets the flip-flop; output HIGH again"
+    explain: "Two comparators + one flip-flop + one transistor = oscillator."
+
+flashcards:
+  - ["555 thresholds", "⅓ Vcc (trigger, pin 2) and ⅔ Vcc (threshold, pin 6)"]
+  - ["555 astable frequency", "f ≈ 1.44 / ((R1 + 2R2)·C)"]
+  - ["555 duty cycle", "(R1 + R2)/(R1 + 2R2) — always > 50 %"]
+  - ["Time from ⅓ to ⅔ on an RC curve", "0.693·τ = ln(2)·RC"]
+  - ["555 pins 4 and 5", "4 = RESET (tie to Vcc), 5 = CTRL (10 nF to GND)"]
+  - ["Gate counting", "Count edges over T_gate; ±1/T_gate Hz; best for fast signals"]
+  - ["Period measurement", "Time one cycle; best for slow signals; also gives duty cycle"]

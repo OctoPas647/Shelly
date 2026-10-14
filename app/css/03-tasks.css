@@ -193,3 +193,8 @@
 .qn { font-style: normal; font-weight: 850; color: var(--ink-3); }
 .res-actions { display: flex; gap: 10px; margin-top: 22px; }
 .res-actions .btn { flex: 1; }
+
+/* number with a unit after the box: [ 2.38 ] V */
+.field-unit { display: flex; align-items: center; gap: 10px; }
+.field-unit .field { flex: 1; min-width: 0; }
+.field-unit .unit { font-weight: 750; font-size: 1.15rem; line-height: 1; color: var(--ink-2); min-width: 1.5em; }

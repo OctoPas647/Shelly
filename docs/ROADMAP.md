@@ -14,6 +14,10 @@ Built step by step; each finished step is pushed here.
 - Android wrapper: file picker, save/send module files, "Open with Shelly"
 - Two demo modules: ДЗИ по БЕЛ, ДЗИ по математика
 
+## Step 1½ (0.2.0, done)
+- Tables and code blocks in rich text; `code` lesson block with Copy / Save; units on number answers
+- Arduino Bench module (electronics course with hands-on labs)
+
 ## Step 2: study materials, flashcards, more task types
 - **Study materials** per lesson and per module: PDF and long text ("what to read before this test"), with reading progress
 - **Flashcards**: decks inside modules, spaced repetition, cards from mistakes

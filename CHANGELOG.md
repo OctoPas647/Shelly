@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+- New module: **Arduino Bench** (English) — electrical engineering with an Arduino Uno and a breadboard: 13 units, 2 capstone builds, 40 lessons, 243 tasks, 22 Arduino sketches, 20 schematics, and a final exam on its own scale
+- Lessons can show **tables** and **code blocks** in any text
+- New lesson block **`code`**: a program with a **Copy** button and an optional **Save as a file** button
+- Number tasks can show a **unit** next to the answer box (`"unit": "mA"`), and the correct answer now shows its tolerance (for example *10 µF (± 2.5)*)
+- Numbers in answers keep their significant digits (0.155 instead of 0.16)
+
 ## 0.1.0
 First version: the empty shell.
 - Modules as `.zip` files: add, update, share blank or with progress, reset, remove

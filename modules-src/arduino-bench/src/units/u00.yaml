@@ -1,0 +1,190 @@
+id: u00
+number: 0
+title: Bench Check
+tagline: Calibrate your tools — and your instincts
+minutes: 45
+difficulty: 1
+objectives:
+  - "Know exactly which breadboard holes are connected (and which rails are split)"
+  - "Use all four multimeter modes correctly: V, mA, Ω, diode/continuity"
+  - "Read resistor colour codes and capacitor number codes without a chart"
+  - "Know the Arduino Uno's electrical limits before you push them"
+
+study:
+  body: |
+    You already know how to blink an LED, so this unit is a fast calibration pass. Every later lab asks you to **predict → build → measure → compare**, and that only works if you trust your tools.
+
+    ### The breadboard
+    Each short row of 5 holes is one node. The groove in the middle separates the two halves. The long rails along the edges are power buses — but on many 830-point boards **each rail is split in the middle**. A circuit that "works on the left half only" is almost always a split rail. Check yours with continuity mode once and you'll never lose an hour to it again.
+
+    ### The multimeter
+
+    | Mode | How it connects | What it does to the circuit |
+    |---|---|---|
+    | **DC V** | in **parallel** (across the part) | almost nothing — input resistance ≈ 10 MΩ |
+    | **DC mA** | in **series** (break the circuit, meter becomes a wire) | adds a small *burden voltage* |
+    | **Ω** | across the part, **power OFF** | injects its own tiny current |
+    | **Diode / continuity** | across the part, power off | shows forward voltage / beeps below ~30–50 Ω |
+
+    The most common way to blow a meter fuse: measuring voltage while the red lead is still in the mA socket. In that socket the meter is nearly a short circuit.
+
+    ### Colour codes
+    4-band resistors: **digit, digit, multiplier, tolerance**. Black 0, brown 1, red 2, orange 3, yellow 4, green 5, blue 6, violet 7, grey 8, white 9. Gold tolerance = ±5 %, brown = ±1 %. 5-band resistors have three digits before the multiplier.
+    Example: yellow-violet-red-gold = 4, 7, ×100 = **4.7 kΩ ±5 %**.
+
+    Resistor values come from the **E-series**: E12 is 10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82 (× powers of ten). That's why you'll never find a 25 kΩ resistor in a kit.
+
+    Ceramic capacitors print **two digits + number of zeros, in picofarads**: 104 = 10 × 10⁴ pF = 100 000 pF = **100 nF**. 103 = 10 nF, 473 = 47 nF.
+
+    ### The Uno's limits (ATmega328P at 5 V)
+    - Any pin: **0 to 5 V only**.
+    - Current per pin: 20 mA recommended, **40 mA absolute maximum**.
+    - Whole chip (all pins together): **200 mA**.
+    - 5 V pin on USB power: shared with the board, protected by a 500 mA polyfuse.
+    - 3.3 V pin: small regulator, budget it at ~50 mA on a classic Uno.
+
+    These numbers will come back in every unit. Units 4 and 6 are basically about working *around* them.
+  formulas:
+    - {name: "Resistor code", formula: "R = (d1 d2) × 10^multiplier"}
+    - {name: "Capacitor code", formula: "C [pF] = (d1 d2) × 10^d3   (104 → 100 nF)"}
+  media: []
+
+labs:
+  - id: lab1
+    title: Know your bench
+    goal: Verify your breadboard, meter and parts before trusting them in later labs.
+    minutes: 30
+    parts:
+      - "Breadboard, a few jumpers"
+      - "Three resistors from the kit (any values)"
+      - "A 104 ceramic capacitor"
+      - "A red LED"
+      - "Arduino Uno + USB"
+    wiring: []
+    steps:
+      - "Set the meter to continuity. Probe the two ends of each long power rail. Mark on the board (tape or marker) if a rail is split in the middle."
+      - "Probe two holes in the same 5-hole row (beep) and two holes across the centre groove (no beep)."
+      - type: resistor
+        q: "Before measuring: find a resistor with the bands brown, black, orange, gold. What is its value?"
+        bands: [brown, black, orange, gold]
+        answer: 10000
+        calc: "10 * 10**3"
+        unit: Ω
+        explain: "1, 0, ×1000 → 10 000 Ω = 10 kΩ, ±5 %."
+      - type: measure
+        q: "Measure that 10 kΩ resistor in Ω mode (don't touch both leads with your fingers — your body is in parallel!)."
+        expected: 10000
+        calc: "10000"
+        unit: Ω
+        tol: 5%
+        explain: "Anything from 9.5 kΩ to 10.5 kΩ is inside a ±5 % part's tolerance. Most real parts are much closer."
+      - type: record
+        q: "Read and then measure your other two resistors. Record the bigger one in Ω."
+        unit: Ω
+      - "Put the meter in diode-test mode. Red probe on the LED's long leg (anode), black on the short leg. The LED should glow faintly."
+      - type: record
+        q: "Diode-test reading for the red LED (the meter shows the forward voltage in V or mV)."
+        unit: V
+      - "Plug in the Arduino by USB. Meter on DC V. Black probe on a GND header pin."
+      - type: measure
+        q: "Measure the 5V header pin. (USB 5 V passes through a fuse and a protection MOSFET on the Uno, so expect a bit under 5.00.)"
+        expected: 5.0
+        calc: "5.0"
+        unit: V
+        tol: 6%
+        explain: "Typical readings are 4.7–5.1 V on USB. Write your exact value down — Unit 1 shows why this number matters for every analogRead()."
+      - type: measure
+        q: "Measure the 3.3V header pin."
+        expected: 3.3
+        calc: "3.3"
+        unit: V
+        tol: 4%
+        explain: "That comes from a small dedicated regulator, so it's usually very close to 3.30 V."
+    observe: |
+      You now have three personal reference numbers: your real 5 V rail, your meter's LED forward voltage, and whether your rails are split. Keep them — later labs use them.
+    troubleshooting:
+      - ["Resistor reads way too low", "You're touching both leads with your fingers, or it's still in a circuit. Measure it loose."]
+      - ["LED doesn't light in diode mode", "Swap the probes (wrong polarity), or your meter's test voltage is too low for blue/white LEDs — that's normal."]
+      - ["5V pin reads ~4.3 V", "A weak USB port/hub or a long thin cable. Try another port; remember the number for Unit 1."]
+    challenges:
+      - "Find the burden voltage of your meter: put it in series with a 1 kΩ resistor and LED on 5 V, measure the current on the mA range and on the µA range (if it has one), and compare."
+
+quiz:
+  - type: resistor
+    q: "Value of red-red-brown-gold?"
+    bands: [red, red, brown, gold]
+    answer: 220
+    calc: "22 * 10"
+    unit: Ω
+    explain: "2, 2, ×10 = 220 Ω."
+  - type: resistor
+    q: "Value of brown-black-green-gold?"
+    bands: [brown, black, green, gold]
+    answer: 1000000
+    calc: "10 * 10**5"
+    unit: Ω
+    explain: "1, 0, ×100 000 = 1 000 000 Ω = 1 MΩ."
+  - type: resistor
+    q: "5-band resistor: brown-black-black-red-brown. Value?"
+    bands: [brown, black, black, red, brown]
+    answer: 10000
+    calc: "100 * 10**2"
+    unit: Ω
+    explain: "Three digits 1, 0, 0 = 100, ×100 = 10 kΩ, brown tolerance = ±1 %."
+  - type: numeric
+    q: "A ceramic capacitor is marked 473. What is its capacitance in nanofarads?"
+    answer: 47
+    calc: "47 * 10**3 / 1000"
+    unit: nF
+    tol: 0
+    explain: "47 × 10³ pF = 47 000 pF = 47 nF."
+  - type: mcq
+    q: "You want the current through an LED. How does the meter connect?"
+    options:
+      - "Across the LED, on the V range"
+      - "In series with the LED, red lead in the mA socket"
+      - "Across the LED, red lead in the mA socket"
+      - "In series, on the Ω range"
+    answer: 1
+    explain: "Current has to flow THROUGH the meter, so you break the circuit and insert it. Across a part, the mA socket is a short circuit."
+  - type: truefalse
+    q: "Measuring a resistor while it is still powered in a circuit gives a correct reading as long as you are careful."
+    answer: false
+    explain: "Ω mode injects its own current. Other paths and live voltages make the reading meaningless, and can damage the meter."
+  - type: numeric
+    q: "Five LEDs each draw 15 mA straight from Arduino pins. What is the total current through the chip, in mA?"
+    answer: 75
+    calc: "5 * 15"
+    unit: mA
+    tol: 0
+    explain: "75 mA: each pin is fine (< 20 mA) and the chip total is well under 200 mA. Doing the totals is a habit worth building."
+  - type: mcq
+    q: "Your circuit works on the left half of the breadboard but not when moved to the right half. Most likely cause?"
+    options:
+      - "The right half is damaged"
+      - "The power rails are split in the middle"
+      - "Breadboards only conduct on one side"
+      - "The Arduino needs a reset"
+    answer: 1
+    explain: "Many 830-point boards split each rail in the middle. Bridge the gap with a jumper."
+  - type: fill
+    q: "The absolute maximum current for a single ATmega328P I/O pin is ___ mA."
+    accept: ["40"]
+    explain: "40 mA is the absolute maximum (damage threshold). Design for 20 mA or less."
+  - type: match
+    q: "Match the code to the value."
+    pairs:
+      - ["104", "100 nF"]
+      - ["103", "10 nF"]
+      - ["brown-black-red", "1 kΩ"]
+      - ["orange-orange-brown", "330 Ω"]
+    explain: "Capacitors: two digits + zeros in pF. Resistors: two digits + multiplier in Ω."
+
+flashcards:
+  - ["Voltmeter connects…", "In PARALLEL (across the part). ~10 MΩ input, barely disturbs the circuit."]
+  - ["Ammeter connects…", "In SERIES (break the circuit). The meter becomes part of the wire."]
+  - ["104 on a capacitor", "10 × 10⁴ pF = 100 nF"]
+  - ["E12 series", "10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82 (× powers of 10)"]
+  - ["ATmega328P pin current limits", "20 mA recommended, 40 mA absolute max, 200 mA whole chip"]
+  - ["Gold / silver / brown tolerance band", "±5 % / ±10 % / ±1 %"]
+  - ["Colour digits 0–9", "Black, Brown, Red, Orange, Yellow, Green, Blue, Violet, Grey, White"]

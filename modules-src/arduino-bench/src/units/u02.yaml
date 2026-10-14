@@ -1,0 +1,188 @@
+id: u02
+number: 2
+title: Trace the Curve
+tagline: Diodes and LEDs are not resistors — prove it with your own I-V tracer
+minutes: 90
+difficulty: 2
+objectives:
+  - "Explain the exponential I-V curve of a PN junction"
+  - "Measure forward voltage vs colour and relate it to the semiconductor's band gap"
+  - "Size an LED resistor from the curve instead of guessing"
+  - "Use a diode as a thermometer"
+
+study:
+  body: |
+    ### A resistor is a straight line. A diode is a cliff.
+    Plot current against voltage for a resistor and you get a straight line through zero with slope 1/R. For a diode you get almost nothing until a "knee", then current shoots up. The ideal-diode (Shockley) equation:
+
+    **I = Iₛ · (e^(V / (n·V_T)) − 1)**
+
+    - Iₛ is a tiny saturation current (pA–nA range).
+    - V_T = kT/q ≈ **26 mV** at room temperature (the *thermal voltage*).
+    - n is the ideality factor, 1–2 for silicon, often 1.5–3 for LEDs.
+
+    Because it's exponential, every extra **n × 60 mV** multiplies the current by **10**. That is why you never drive an LED from a "voltage": a tiny voltage change is a huge current change, and the LED's Vf also drops as it warms up — runaway. You set the **current** with a series resistor instead:
+
+    **R = (V_supply − V_f) / I_LED**
+
+    ### Why colours have different forward voltages
+    A photon's energy is set by the semiconductor's band gap, and the electron needs at least roughly that much energy (in eV) to cross it. Red light (~630 nm) photons carry ~2.0 eV, blue (~465 nm) ~2.7 eV. So, roughly: **red ≈ 1.8–2.1 V, yellow/green ≈ 2.0–2.2 V (older) or 2.8–3.2 V (pure green InGaN), blue/white ≈ 2.8–3.3 V.** You're about to measure the real numbers for your kit.
+
+    ### Diode facts worth knowing
+    - Silicon rectifier (1N4007): knee around 0.5–0.7 V at small currents, ~0.9–1 V at 1 A. Rated 1 A, 1000 V reverse.
+    - LEDs survive only ~5 V in reverse. Don't plug them backwards into anything above that.
+    - Forward voltage has a **temperature coefficient of about −2 mV/°C** for silicon. Warm the diode, Vf drops. Many chip thermometers are literally this.
+    - Don't share one resistor between parallel LEDs: the one with the slightly lower Vf hogs the current (exponential curve again!).
+
+    ### How the tracer works
+    You can't measure current directly with the ADC, but you can measure voltage at two points. A known **sense resistor** in series turns current into a voltage: I = (V_A0 − V_A1) / R_sense. The pot acts as an adjustable voltage source. Sweep it, log both voltages, and you have an I-V curve.
+  formulas:
+    - {name: "Shockley diode equation", formula: "I = Iₛ·(e^(V/(n·V_T)) − 1),  V_T ≈ 26 mV"}
+    - {name: "Decade rule", formula: "≈ n × 60 mV per 10× current"}
+    - {name: "LED resistor", formula: "R = (Vs − Vf) / I"}
+    - {name: "Sense resistor", formula: "I = (V_A0 − V_A1) / R_sense"}
+    - {name: "Photon energy", formula: "E [eV] ≈ 1240 / λ [nm]"}
+  media:
+    - {image: u02_iv_tracer, caption: "The pot is a variable voltage source; the 220 Ω sense resistor turns current into a measurable voltage."}
+
+labs:
+  - id: lab1
+    title: LED I-V Curve Tracer
+    goal: Plot real I-V curves of red, green, blue/white LEDs and a silicon diode — then use a diode as a thermometer.
+    minutes: 60
+    parts:
+      - "10 kΩ potentiometer"
+      - "220 Ω resistor (measure it!)"
+      - "Red, green and blue (or white) LED"
+      - "1N4007 diode"
+      - "Arduino Uno, multimeter"
+    schematic: u02_iv_tracer
+    sketch: u02_iv_tracer
+    wiring:
+      - ["pot outer leg 1", "5V"]
+      - ["pot outer leg 2", "GND"]
+      - ["pot wiper", "A0 and one end of R_SENSE"]
+      - ["other end of R_SENSE", "A1 and LED anode (long leg)"]
+      - ["LED cathode (short leg)", "GND"]
+    steps:
+      - "Measure your 220 Ω resistor and your 5V pin; type both into R_SENSE and VCC at the top of the sketch."
+      - type: numeric
+        q: "Predict the LED current with the pot turned fully up (5.00 V), for a red LED with Vf = 2.0 V."
+        answer: 13.64
+        calc: "(5.0 - 2.0) / 220 * 1000"
+        unit: mA
+        tol: 3%
+        explain: "(5 − 2) / 220 = 13.6 mA — safe for the LED and well inside the pot's rating."
+      - "Build the tracer with the red LED. Upload, open Serial Monitor (115200), turn the pot slowly from 0 to max."
+      - type: measure
+        q: "Last I_mA value at the top of the sweep (pot fully up)."
+        expected: 13.6
+        calc: "(5.0 - 2.0) / 220 * 1000"
+        unit: mA
+        tol: 15%
+        explain: "Real Vcc a bit under 5 V and a Vf of 1.9–2.2 V both move this by a few percent."
+      - type: record
+        q: "Red LED: the sketch's '1 mA reached at V_led' value."
+        unit: V
+      - "Copy the CSV rows into a spreadsheet (Google Sheets / Excel) and make an X-Y scatter chart. Send 'r' to reset before each new part."
+      - type: record
+        q: "Green LED: V_led at 1 mA."
+        unit: V
+      - type: record
+        q: "Blue or white LED: V_led at 1 mA."
+        unit: V
+      - type: record
+        q: "1N4007 diode (stripe to GND): V at 1 mA."
+        unit: V
+      - type: mcq
+        q: "Plotting all four curves on one chart, what do you see?"
+        options:
+          - "Four straight lines with different slopes"
+          - "Four similar 'knee' shapes shifted along the voltage axis — silicon lowest, blue/white highest"
+          - "All parts conduct from 0 V"
+          - "The 1N4007 has the highest knee"
+        answer: 1
+        explain: "Same exponential physics, different band gaps. Each knee sits at a different voltage."
+      - "Thermometer trick: set the 1N4007 at ~1 mA (watch the I_mA value), then pinch the diode between your fingers for 30 s."
+      - type: record
+        q: "How many mV did the diode voltage drop while you warmed it?"
+        unit: mV
+    observe: |
+      Below the knee the current is basically zero; above it, a few tens of millivolts change the current a lot. Warming the diode by ~10 °C should pull Vf down by roughly 20 mV at the same current.
+    troubleshooting:
+      - ["Current stays 0 all the way", "LED is backwards (long leg goes to the resistor) or A1 is not on the LED anode."]
+      - ["Negative current values", "A0 and A1 are swapped. The sketch clamps them to 0."]
+      - ["Curve is 'steppy'", "Each ADC step is ~4.9 mV, so ~22 µA of current resolution with 220 Ω. That's the ADC, not your LED."]
+    challenges:
+      - "Swap R_SENSE for 1 kΩ. The current resolution gets 4.5× finer but the maximum current drops. Re-plot the knee region."
+      - "Estimate the ideality factor n of your red LED: find two points 10× apart in current (e.g. 0.2 mA and 2 mA) and use ΔV = n × 59.5 mV."
+
+quiz:
+  - type: numeric
+    q: "A blue LED (Vf = 3.0 V) should run at 10 mA from 5 V. Exact resistor value?"
+    answer: 200
+    calc: "(5 - 3.0) / 0.010"
+    unit: Ω
+    tol: 1%
+    explain: "(5 − 3) / 0.01 = 200 Ω. Use the next standard value up: 220 Ω → 9.1 mA."
+  - type: numeric
+    q: "How much power does the 220 Ω resistor dissipate at 13.6 mA? Answer in mW."
+    answer: 40.7
+    calc: "(13.6e-3)**2 * 220 * 1000"
+    unit: mW
+    tol: 3%
+    explain: "I²R = 0.0136² × 220 ≈ 41 mW — far below ¼ W."
+  - type: mcq
+    q: "An ideal diode (n = 1) at room temperature. Roughly how much must V rise for the current to grow 10×?"
+    options: ["6 mV", "60 mV", "0.6 V", "6 V"]
+    answer: 1
+    explain: "ln(10) × V_T ≈ 2.303 × 26 mV ≈ 60 mV per decade."
+  - type: truefalse
+    q: "It is fine to connect a red LED straight across a 3.3 V supply, because 3.3 V is less than its maximum rating."
+    answer: false
+    explain: "There's no 'maximum voltage' to stay under — current explodes exponentially above Vf (~2 V). Without a resistor the LED (or the supply) is destroyed."
+  - type: mcq
+    q: "Why shouldn't two LEDs in parallel share one resistor?"
+    options:
+      - "The resistor would overheat"
+      - "The LED with the lower Vf takes most of the current"
+      - "Parallel LEDs never light"
+      - "It doubles the forward voltage"
+    answer: 1
+    explain: "Tiny Vf differences become big current differences on an exponential curve. Give each LED its own resistor."
+  - type: numeric
+    q: "A silicon diode reads 600 mV at 25 °C. With a −2 mV/°C coefficient, what does it read at 45 °C (same current)?"
+    answer: 560
+    calc: "600 - 2 * (45 - 25)"
+    unit: mV
+    tol: 1%
+    explain: "20 °C × −2 mV/°C = −40 mV → 560 mV."
+  - type: numeric
+    q: "Roughly what photon energy (eV) does a 620 nm red LED emit? Use E ≈ 1240/λ."
+    answer: 2.0
+    calc: "1240 / 620"
+    unit: eV
+    tol: 3%
+    explain: "1240/620 = 2.0 eV, which is why red LEDs start conducting around 1.8–2 V."
+  - type: match
+    q: "Match each part to its typical forward voltage at a few mA."
+    pairs:
+      - ["1N4007 silicon diode", "≈ 0.6 V"]
+      - ["Red LED", "≈ 1.9 V"]
+      - ["Blue / white LED", "≈ 3.0 V"]
+      - ["Schottky diode", "≈ 0.3 V"]
+    explain: "Schottky diodes use a metal-semiconductor junction and have the lowest drop — handy for battery circuits."
+  - type: fill
+    q: "The thermal voltage V_T at room temperature is about ___ mV."
+    accept: ["26", "25", "25.9", "25.85", "25.7"]
+    explain: "kT/q ≈ 25.9 mV at 300 K; ~26 mV is the number everyone remembers."
+
+flashcards:
+  - ["Shockley equation", "I = Iₛ(e^(V/nV_T) − 1)"]
+  - ["V_T at room temperature", "≈ 26 mV"]
+  - ["How much ΔV for 10× current (n = 1)?", "≈ 60 mV"]
+  - ["LED series resistor", "R = (Vs − Vf) / I"]
+  - ["Silicon diode tempco", "≈ −2 mV/°C (warmer → lower Vf)"]
+  - ["Typical Vf: red / green / blue", "≈ 1.9 V / 2.1–3.1 V / 3.0 V"]
+  - ["LED max reverse voltage", "≈ 5 V"]
+  - ["Measuring current with an ADC", "Put a known resistor in series, measure the voltage across it: I = ΔV / R"]

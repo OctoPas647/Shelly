@@ -1,0 +1,68 @@
+title: Bench License — Final Exam
+description: |
+  38 questions, 100 points, 75 minutes. Calculator allowed, notes not.
+  70 points = Bench License, 90 points = with distinction.
+  Each question names the unit to revise if you miss it.
+tasks:
+  # ---------------- 2-point concept questions (20 × 2 = 40)
+  - {type: mcq, points: 2, covers: u00, q: "Which multimeter mode must be connected in series with the circuit?", options: ["DC volts", "Ohms", "DC milliamps", "Diode test"], answer: 2, explain: "Current must flow through the meter."}
+  - {type: truefalse, points: 2, covers: u01, q: "Any linear two-terminal network can be replaced by one voltage source in series with one resistor, and it will behave identically for every load.", answer: true, explain: "That's Thevenin's theorem."}
+  - {type: mcq, points: 2, covers: u01, q: "On a default Uno, analogRead() measures the input relative to…", options: ["the 1.1 V bandgap", "the 5 V rail (AVcc), whatever its real value is", "the 3.3 V pin", "GND only"], answer: 1, explain: "That's why a sagging USB rail skews every reading — unless you measure ratiometrically or calibrate."}
+  - {type: mcq, points: 2, covers: u02, q: "An LED warms up while running at constant current. Its forward voltage…", options: ["rises", "falls", "stays exactly the same", "becomes negative"], answer: 1, explain: "About −2 mV/°C for silicon; LEDs behave similarly. That's why driving LEDs from a fixed voltage can run away."}
+  - {type: truefalse, points: 2, covers: u03, q: "Electrolytic capacitors can be connected either way round as long as the voltage is low.", answer: false, explain: "They're polarised at any voltage; reversed they leak, heat up and can fail."}
+  - {type: mcq, points: 2, covers: u03, q: "After how many time constants is an RC circuit considered fully charged (≈ 99 %)?", options: ["1", "2", "5", "100"], answer: 2, explain: "5τ ≈ 99.3 %."}
+  - {type: mcq, points: 2, covers: u04, q: "A BJT used as a switch is saturated. Its V_CE is typically…", options: ["0.1–0.3 V", "0.7 V", "half the supply", "equal to the supply"], answer: 0, explain: "Saturated = fully on, little voltage across it, little heat."}
+  - {type: mcq, points: 2, covers: u04, q: "What does a flyback diode across a relay coil protect against?", options: ["Reverse battery connection", "The high-voltage spike the coil produces when its current is switched off", "Overcurrent when switching on", "ESD from fingers"], answer: 1, explain: "V = L·dI/dt; the diode gives the coil current a path to decay."}
+  - {type: mcq, points: 2, covers: u05, q: "A digital input with nothing connected to it reads…", options: ["always LOW", "always HIGH", "unpredictable values (it floats)", "exactly 2.5 V"], answer: 2, explain: "Use a pull-up or pull-down."}
+  - {type: mcq, points: 2, covers: u05, q: "Why must a variable changed inside an ISR be declared volatile?", options: ["To make it faster", "So the compiler re-reads it from memory every time instead of using a cached copy", "To store it in EEPROM", "Because ISRs can only use bytes"], answer: 1, explain: "Otherwise loop() may never see the change."}
+  - {type: mcq, points: 2, covers: u06, q: "Pulling the 74HC595's /OE pin HIGH…", options: ["clears the shift register", "turns all outputs off (high impedance)", "latches the data", "shifts one bit"], answer: 1, explain: "/OE is active-LOW output enable."}
+  - {type: truefalse, points: 2, covers: u06, q: "A decoupling capacitor works best placed far away from the chip, near the power supply.", answer: false, explain: "As close to the chip's VCC/GND pins as possible — the point is to beat the wiring's inductance."}
+  - {type: mcq, points: 2, covers: u07, q: "A thermistor divider fed from the same 5 V as the ADC reference is called ratiometric because…", options: ["it uses two resistors", "the supply voltage cancels out of the reading", "it measures ratios of temperatures", "it needs no calibration at all"], answer: 1, explain: "Sensor and reference move together."}
+  - {type: mcq, points: 2, covers: u07, q: "What does hysteresis prevent in a threshold-based switch?", options: ["Overheating", "Rapid on/off chattering when the input hovers near the threshold", "ADC noise", "Slow response"], answer: 1, explain: "Two thresholds, hold the state between them."}
+  - {type: mcq, points: 2, covers: u08, q: "In ultrasonic ranging, d = c·t/2. The /2 is because…", options: ["the sensor has two transducers", "the echo time covers the distance twice (there and back)", "the burst has 50 % duty", "of temperature correction"], answer: 1, explain: "Round trip."}
+  - {type: mcq, points: 2, covers: u09, q: "The 555's two comparator thresholds are at…", options: ["0 V and Vcc", "¼ and ¾ Vcc", "⅓ and ⅔ Vcc", "0.7 V and 1.4 V"], answer: 2, explain: "Set by three equal internal resistors."}
+  - {type: mcq, points: 2, covers: u10, q: "With EN high and both L293D inputs LOW, the motor…", options: ["spins forward", "coasts", "brakes (terminals shorted together)", "spins backwards"], answer: 2, explain: "Both outputs LOW → motor shorted → dynamic braking."}
+  - {type: mcq, points: 2, covers: u10, q: "A hobby servo's position is set by…", options: ["the PWM duty cycle at 490 Hz", "the width of a pulse repeated every ~20 ms", "the supply voltage", "the number of pulses"], answer: 1, explain: "~1–2 ms pulse width at 50 Hz."}
+  - {type: mcq, points: 2, covers: u11, q: "In UART, the line is … when idle, and a start bit is …", options: ["LOW, HIGH", "HIGH, LOW", "HIGH, HIGH", "floating, LOW"], answer: 1, explain: "Idle HIGH; the falling edge of the LOW start bit synchronises the receiver."}
+  - {type: truefalse, points: 2, covers: u12, q: "Replacing delay() with a sleep mode can reduce a microcontroller's power consumption.", answer: true, explain: "delay() is a busy-wait; sleep actually stops clocks."}
+
+  # ---------------- 3-point calculations (12 × 3 = 36)
+  - {type: numeric, points: 3, covers: u01, q: "Divider: 4.7 kΩ on top, 10 kΩ at the bottom, 9 V in. Unloaded Vout?", answer: 6.122, calc: "9 * 10e3 / (4.7e3 + 10e3)", unit: V, tol: 1%, explain: "9 × 10/14.7 = 6.12 V."}
+  - {type: numeric, points: 3, covers: u02, q: "Two red LEDs (Vf 2.0 V each) in series from 9 V at 15 mA. Resistor?", answer: 333, calc: "(9 - 2 * 2.0) / 0.015", unit: Ω, tol: 2%, explain: "(9 − 4)/0.015 = 333 Ω → 330 Ω."}
+  - {type: numeric, points: 3, covers: u03, q: "Time constant of 22 kΩ with 47 µF?", answer: 1.034, calc: "22e3 * 47e-6", unit: s, tol: 1%, explain: "22 000 × 0.000047 = 1.034 s."}
+  - {type: numeric, points: 3, covers: u04, q: "Switch 120 mA with an NPN, forced β = 15, from a 5 V pin (V_BE 0.7 V). Base resistor?", answer: 537.5, calc: "(5 - 0.7) / (0.120 / 15)", unit: Ω, tol: 2%, explain: "I_B = 8 mA → 4.3/0.008 = 537 Ω → use 470 Ω or 510 Ω (lower, so I_B rises)."}
+  - {type: numeric, points: 3, covers: u07, q: "With the 5 V reference, what does analogRead return for exactly 3.3 V?", answer: 676, calc: "round(3.3 * 1024 / 5)", unit: counts, tol: 0.5%, explain: "3.3 × 1024 / 5 = 675.8 → 676."}
+  - {type: numeric, points: 3, covers: u07, q: "10 kΩ NTC, B = 3950. Resistance at 40 °C?", answer: 5.301, calc: "10 * exp(3950 * (1/313.15 - 1/298.15))", unit: kΩ, tol: 2%, explain: "10 · e^(3950·(1/313.15 − 1/298.15)) ≈ 5.30 kΩ."}
+  - {type: numeric, points: 3, covers: u08, q: "Air at 25 °C. The echo pulse is 2 000 µs. Distance in cm?", answer: 34.6, calc: "2000e-6 * (331.3 + 0.606 * 25) / 2 * 100", unit: cm, tol: 1%, explain: "c = 346.5 m/s; 0.002 × 346.5 / 2 = 0.3465 m."}
+  - {type: numeric, points: 3, covers: u09, q: "555 astable with R1 = 4.7 kΩ, R2 = 47 kΩ, C = 1 µF. Frequency?", answer: 14.62, calc: "1 / (log(2) * (4.7e3 + 2 * 47e3) * 1e-6)", unit: Hz, tol: 2%, explain: "1 / (0.693 × 98.7 kΩ × 1 µF) ≈ 14.6 Hz."}
+  - {type: numeric, points: 3, covers: u06, q: "Eight LEDs (Vf 2.0 V) on a 74HC595 with 680 Ω each, all on. Total current?", answer: 35.3, calc: "8 * (5 - 2.0) / 680 * 1000", unit: mA, tol: 2%, explain: "8 × 4.4 mA = 35 mA — within the 70 mA chip limit."}
+  - {type: numeric, points: 3, covers: u11, q: "Bytes per second at 57 600 baud, 8N1?", answer: 5760, calc: "57600 / 10", unit: bytes/s, tol: 0, explain: "10 bits per byte."}
+  - {type: numeric, points: 3, covers: u12, q: "Linear regulator, 7.5 V in, 5 V out, 300 mA. Heat dissipated?", answer: 0.75, calc: "(7.5 - 5) * 0.300", unit: W, tol: 1%, explain: "2.5 V × 0.3 A = 0.75 W."}
+  - {type: numeric, points: 3, covers: u10, q: "A 2048-step stepper. Degrees per step?", answer: 0.1758, calc: "360 / 2048", unit: "°", tol: 1%, explain: "360/2048 ≈ 0.176°."}
+
+  # ---------------- 4-point multi-step (6 × 4 = 24)
+  - {type: numeric, points: 4, covers: u12, q: "A logger draws 25 mA for 2 s every 60 s and 0.1 mA otherwise. How many DAYS does a 1000 mAh battery last?", answer: 44.8, calc: "1000 / ((25 * 2 + 0.1 * 58) / 60) / 24", unit: days, tol: 3%, explain: "I_avg = (50 + 5.8)/60 = 0.93 mA → 1075 h ≈ 45 days."}
+  - {type: numeric, points: 4, covers: u01, q: "A 100 kΩ / 100 kΩ divider from 5 V drives a 100 kΩ load. Loaded Vout?", answer: 1.667, calc: "5 * (100e3 * 100e3 / 200e3) / (100e3 + 100e3 * 100e3 / 200e3)", unit: V, tol: 1%, explain: "R2 ∥ R_L = 50 kΩ → 5 × 50/150 = 1.67 V instead of 2.5 V."}
+  - type: codeline
+    points: 4
+    covers: u07
+    q: "This thermometer prints nonsense. Which line has the physics bug?"
+    code: |
+      float r = 10000.0 * adc / (1024.0 - adc);
+      float t = 1.0 / (1.0 / 25.0 + log(r / 10000.0) / 3950.0);
+      Serial.println(t - 273.15);
+    answer: 2
+    explain: "The Beta equation needs kelvin: 1/298.15, not 1/25."
+  - type: order
+    points: 4
+    covers: u04
+    q: "Order the steps for designing an NPN low-side switch."
+    items:
+      - "Measure (or look up) the load current"
+      - "Choose a forced β of 10–20"
+      - "Compute I_B = I_C / β_forced"
+      - "Compute R_B = (V_pin − V_BE) / I_B and pick the next LOWER standard value"
+      - "Build it and confirm V_CE is only ~0.1–0.3 V"
+    explain: "Measure → design with margin → verify saturation."
+  - {type: numeric, points: 4, covers: u09, q: "555 astable with R1 = R2 = 1 kΩ. Duty cycle in %?", answer: 66.7, calc: "(1e3 + 1e3) / (1e3 + 2 * 1e3) * 100", unit: "%", tol: 1%, explain: "2/3 = 66.7 %."}
+  - {type: numeric, points: 4, covers: c2, q: "Sampling at 500 S/s, a 1 520 Hz signal appears at what frequency?", answer: 20, calc: "abs(1520 - round(1520 / 500) * 500)", unit: Hz, tol: 0, explain: "k = round(1520/500) = 3 → |1520 − 1500| = 20 Hz. A fast signal masquerading as a slow one."}

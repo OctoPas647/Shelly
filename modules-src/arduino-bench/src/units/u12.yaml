@@ -1,0 +1,188 @@
+id: u12
+number: 12
+title: Where Does the Power Go?
+tagline: Regulators, batteries, current budgets and sleep modes
+minutes: 80
+difficulty: 3
+objectives:
+  - "Calculate linear-regulator heat and efficiency, and know when a switching regulator wins"
+  - "Measure real current consumption with the meter in series"
+  - "Estimate battery life, including duty-cycled designs"
+  - "Use AVR sleep modes and understand why an Uno board can't really sleep"
+
+study:
+  body: |
+    ### Linear regulators burn the difference
+    A linear regulator (like the Uno's NCP1117 on the barrel jack / VIN path) works like a smart variable resistor: the input current equals the output current. Everything between Vin and Vout becomes heat:
+
+    **P_loss = (Vin − Vout) · I**, efficiency **η = Vout / Vin**
+
+    Feed 9 V into an Uno drawing 50 mA: 0.2 W of heat and only 56 % efficiency. Feed it 12 V at 200 mA: 1.4 W — the regulator gets too hot to touch and shuts down. That's why the recommended input is 7–12 V, and why "more voltage is safer" is false.
+
+    ### Switching regulators
+    A **buck** converter chops the input with a fast switch and smooths it with an inductor and capacitor (the PWM + filter idea from Unit 3, with an inductor). Efficiency 80–95 % and nearly independent of Vin. A **boost** converter goes the other way (e.g. 3.7 V Li-ion → 5 V). Because power in ≈ power out / η, a buck *reduces* the current drawn from the battery when Vin > Vout — a linear regulator never can.
+
+    ### Batteries
+    Capacity is in **mAh**: 500 mAh ≈ 500 mA for 1 h, or 5 mA for 100 h — roughly. High currents deliver less (internal resistance, chemistry), so treat datasheet capacity as a best case. A 9 V alkaline is ~500 mAh at low drain, an AA alkaline ~2000–2500 mAh.
+
+    **Battery life ≈ capacity / average current.**
+
+    Most battery gadgets sleep 99 % of the time. Their *average* current is:
+
+    **I_avg = (I_active · t_active + I_sleep · t_sleep) / (t_active + t_sleep)**
+
+    Which means the sleep current often matters more than the active current!
+
+    ### Sleep modes on the ATmega328P
+    - `delay()` does **not** save power — the CPU spins in a loop counting.
+    - **IDLE:** CPU clock stops, peripherals and timers keep running. Any interrupt (including the 1 ms millis() tick) wakes it.
+    - **POWER-DOWN:** almost everything off, including the main oscillator. Only external interrupts (on INT0/INT1, as a **LOW level** — edge detection needs a clock that is stopped), pin changes, the watchdog or I²C address match can wake it. A bare ATmega328P in power-down with the watchdog and brown-out detector off draws **well under 1 µA**.
+
+    ### …but the Uno board isn't a bare chip
+    The Uno also powers a USB-serial chip (16U2), a power LED, regulators and an op-amp. Those draw tens of mA whatever the main chip does. You're about to measure how little sleep helps on an Uno — and that's the lesson: low-power products are designed from the board up (bare chip, efficient regulator, no LEDs, sensors switched off).
+
+    ### Measuring current
+    Meter on **mA**, red lead in the **mA socket**, meter **in series** with the supply. The meter's shunt adds a small *burden voltage* (≈ mV per mA on low ranges), and fast current spikes are averaged out — a meter shows the average.
+  formulas:
+    - {name: "Linear regulator loss", formula: "P = (Vin − Vout) · I"}
+    - {name: "Linear efficiency", formula: "η = Vout / Vin"}
+    - {name: "Switching regulator input current", formula: "I_in = Vout · I_out / (η · Vin)"}
+    - {name: "Battery life", formula: "t ≈ capacity / I_avg"}
+    - {name: "Duty-cycled average", formula: "I_avg = (I_a·t_a + I_s·t_s)/(t_a + t_s)"}
+  media:
+    - {image: u12_power, caption: "Battery into VIN with the meter in series on the + lead. USB unplugged!"}
+
+labs:
+  - id: lab1
+    title: Measure the Uno's Appetite
+    goal: Measure current in four modes and see how much (little) sleeping helps on a full Arduino board.
+    minutes: 45
+    parts:
+      - "9 V battery + clip with bare leads (or the power module's 9 V input wires)"
+      - "Push button"
+      - "Multimeter on mA"
+    schematic: u12_power
+    sketch: u12_sleep_current
+    wiring:
+      - ["battery +", "meter (mA socket) → meter COM → Uno VIN"]
+      - ["battery −", "Uno GND"]
+      - ["button", "D2 to GND"]
+    steps:
+      - "Upload u12_sleep_current over USB FIRST, then unplug USB. VIN bypasses the Uno's reverse-polarity protection: double-check + and − before connecting."
+      - "Connect the battery through the meter. The on-board LED blinks once: mode 0 (busy)."
+      - type: record
+        q: "Mode 0 — BUSY current."
+        unit: mA
+      - "Press the button: mode 1 (busy + LED on)."
+      - type: record
+        q: "Mode 1 — BUSY + LED current."
+        unit: mA
+      - "Press: mode 2 (IDLE sleep)."
+      - type: record
+        q: "Mode 2 — IDLE current."
+        unit: mA
+      - "Press: mode 3 (POWER-DOWN). Press again to wake it."
+      - type: record
+        q: "Mode 3 — POWER-DOWN current."
+        unit: mA
+      - type: numeric
+        q: "Say mode 0 measured 45 mA at 9 V in. How much power does the linear regulator turn into heat?"
+        answer: 0.18
+        calc: "(9 - 5) * 0.045"
+        unit: W
+        tol: 1%
+        explain: "(9 − 5) × 0.045 = 0.18 W — 44 % of everything the battery delivers."
+      - type: numeric
+        q: "And how long would a 500 mAh 9 V battery last at 45 mA?"
+        answer: 11.1
+        calc: "500 / 45"
+        unit: h
+        tol: 2%
+        explain: "500/45 ≈ 11 hours. Not great for a battery gadget."
+      - type: mcq
+        q: "Power-down probably saved only a modest fraction of the current. Where does the rest go?"
+        options:
+          - "Into the button"
+          - "The rest of the Uno board: USB-serial chip, power LED, regulator, op-amp — they don't sleep"
+          - "The multimeter"
+          - "The ATmega328P ignores sleep commands"
+        answer: 1
+        explain: "The main chip can drop to µA; the board around it can't. Low-power design starts at the schematic."
+    observe: |
+      Busy and IDLE differ a little, the LED adds a few mA, power-down drops further — but nowhere near zero. Compare with a bare ATmega's < 1 µA: a factor of thousands.
+    troubleshooting:
+      - ["Meter reads 0, Uno is off", "Meter on V or the red lead in the V socket (open circuit), or its mA fuse is blown."]
+      - ["Won't wake from power-down", "The button must pull D2 LOW (to GND). Wake-up only works as a LOW level on INT0."]
+      - ["Readings jump around", "Normal: the meter averages fast current pulses. Watch for a few seconds and note the typical value."]
+    challenges:
+      - "Remove the 9 V and power the Uno from USB through a USB power meter (if you have one). Compare."
+      - "If you have a bare ATmega328P or an Arduino Pro Mini (power LED removed), repeat mode 3 and see µA."
+
+quiz:
+  - type: numeric
+    q: "Efficiency of a linear 5 V regulator fed from 9 V?"
+    answer: 55.6
+    calc: "5 / 9 * 100"
+    unit: "%"
+    tol: 1%
+    explain: "Vout/Vin = 5/9 = 55.6 %, regardless of load current."
+  - type: numeric
+    q: "A sensor node draws 15 mA for 100 ms every 10 s and 5 µA asleep. Average current in mA?"
+    answer: 0.155
+    calc: "(15 * 0.1 + 0.005 * 9.9) / 10"
+    unit: mA
+    tol: 2%
+    explain: "(15 × 0.1 + 0.005 × 9.9) / 10 ≈ 0.155 mA."
+  - type: numeric
+    q: "How many days does that node run on 2000 mAh of AA batteries?"
+    answer: 538
+    calc: "2000 / ((15 * 0.1 + 0.005 * 9.9) / 10) / 24"
+    unit: days
+    tol: 3%
+    explain: "2000 / 0.155 ≈ 12 900 h ≈ 538 days — about 1.5 years."
+  - type: numeric
+    q: "A 90 %-efficient buck converts 9 V to 5 V at 45 mA. Current drawn from the battery?"
+    answer: 27.8
+    calc: "5 * 45 / (0.9 * 9)"
+    unit: mA
+    tol: 2%
+    explain: "P_out = 0.225 W; P_in = 0.25 W; I_in = 0.25/9 = 27.8 mA. A linear regulator would pull the full 45 mA."
+  - type: truefalse
+    q: "delay(1000) puts the Arduino into a low-power state for one second."
+    answer: false
+    explain: "delay() is a busy loop. Use sleep modes for savings."
+  - type: mcq
+    q: "Why must the wake-up interrupt in POWER-DOWN be a LOW level, not a FALLING edge, on INT0?"
+    options:
+      - "Edges are too fast"
+      - "Edge detection needs the I/O clock, which is stopped in power-down"
+      - "FALLING is reserved for Serial"
+      - "It's an Arduino library limitation only"
+    answer: 1
+    explain: "Datasheet: in power-down, INT0/INT1 only wake on a level interrupt. (Pin-change interrupts also work.)"
+  - type: numeric
+    q: "An Uno on 12 V draws 200 mA through its linear regulator. Heat in the regulator?"
+    answer: 1.4
+    calc: "(12 - 5) * 0.200"
+    unit: W
+    tol: 1%
+    explain: "7 V × 0.2 A = 1.4 W — too much for a small SOT-223 without a big copper area. It will overheat and shut down."
+  - type: mcq
+    q: "Your meter shows 0 mA and the Arduino is dead when inserted in series. Most likely?"
+    options:
+      - "The Arduino uses no current"
+      - "The meter's mA fuse is blown or the red lead is still in the V socket"
+      - "The battery is too strong"
+      - "VIN is broken"
+    answer: 1
+    explain: "In the V socket a meter is ~10 MΩ — practically an open circuit in series."
+
+flashcards:
+  - ["Linear regulator heat", "(Vin − Vout) × I"]
+  - ["Linear regulator efficiency", "Vout / Vin"]
+  - ["Buck converter", "Switching step-down, 80–95 % efficient; draws LESS input current than output when Vin > Vout"]
+  - ["Battery life", "capacity [mAh] / average current [mA] = hours"]
+  - ["delay() and power", "Busy-wait — saves nothing"]
+  - ["ATmega328P power-down", "< 1 µA bare chip (WDT and BOD off); wake by INT0/1 LOW level, pin change, WDT"]
+  - ["Why the Uno can't sleep well", "USB chip, power LED, regulators, op-amp keep drawing tens of mA"]
+  - ["Uno recommended VIN", "7–12 V"]

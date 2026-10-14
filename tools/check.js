@@ -5,8 +5,9 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const ctx = vm.createContext({ console, Blob, Response, TextEncoder, TextDecoder, DecompressionStream, CompressionStream, Intl, Set, Map });
-const engine = ['00-util', '01-zip', '02-module-format', '03-scoring', '10-i18n'].map(f => fs.readFileSync(path.join(ROOT, 'app/js', f + '.js'), 'utf8')).join('\n;\n');
-vm.runInContext(engine + '\n;globalThis.E = { checkModule, prepareModule, scoreTask, applyScale, parseNumber, textMatches, readZip, writeZip, STR, moduleMediaPaths };', ctx);
+const engine = ['00-util', '01-zip', '02-module-format', '03-scoring', '10-i18n', '12-rich'].map(f => fs.readFileSync(path.join(ROOT, 'app/js', f + '.js'), 'utf8')).join('\n;\n');
+/* 12-rich needs KaTeX only for $math$; a stand-in is enough to test tables and code blocks */
+vm.runInContext('globalThis.katex = { renderToString: (x, o) => "<katex" + (o.displayMode ? " display" : "") + ">" + x + "</katex>" };\n' + engine + '\n;globalThis.E = { checkModule, prepareModule, scoreTask, applyScale, parseNumber, textMatches, readZip, writeZip, STR, moduleMediaPaths, rich, fmtSig };', ctx);
 const E = ctx.E;
 let fails = 0;
 const ok = (cond, name) => { if (!cond) { fails++; console.log('  FAIL  ' + name); } };
@@ -39,6 +40,21 @@ const eq = (a, b, name) => ok(JSON.stringify(a) === JSON.stringify(b), `${name}:
   const entries = await E.readZip(zip);
   eq(entries.map(e => e.name), ['module.json', 'media/a.bin'], 'zip names');
   eq(new TextDecoder().decode(await entries[0].read()), '{"a":"кирилица"}', 'zip text round-trip');
+  /* rich text: tables and code blocks */
+  const tbl = E.rich('Pins:\n| Pin | Use |\n|---|:---:|\n| `D2` | INT0 a\\|b in code: `x|y` |\n| A0 | **sense** |');
+  ok(tbl.startsWith('<p>Pins:</p><div class="tablewrap"><table>'), 'table after a text line');
+  ok(tbl.includes('<th style="text-align:center">Use</th>') && tbl.includes('<strong>sense</strong>') && tbl.includes('<code>x|y</code>') && tbl.includes('INT0 a|b'), 'table cells: alignment, formatting, | inside code, escaped \\|');
+  const cb = E.rich('Before\n\n```cpp\nint a = 2 * 3; // $5 **not bold**\n\nfloat b = a / 2;\n```\n\nAfter $x$');
+  ok(cb.includes('<pre class="codeblock" data-lang="cpp"><code>int a = 2 * 3; // $5 **not bold**\n\nfloat b = a / 2;</code></pre>'), 'code block kept literally, blank lines inside');
+  ok(cb.endsWith('<p>After <katex>x</katex></p>') && !cb.includes('<p><pre'), 'code block is not wrapped in a paragraph; math after it still works');
+  ok(E.rich('| not | a table |').startsWith('<p>'), 'a lone | line stays a paragraph');
+  eq([E.fmtSig(0.155, 'en'), E.fmtSig(2.38095, 'en'), E.fmtSig(18000, 'en'), E.fmtSig(4.5, 'bg')], ['0.155', '2.381', '18,000', '4,5'], 'significant digits');
+  /* format: code blocks and number units */
+  const mini = extra => ({ format: 1, id: 'test.mod', version: '1', lang: 'en', title: 'T', units: [{ id: 'u', title: 'U', lessons: [{ id: 'l', title: 'L', ...extra }] }] });
+  eq(E.checkModule(mini({ content: [{ type: 'code', code: 'void setup() {}', lang: 'cpp', file: 'blink.ino' }] })).errors, [], 'code block accepted');
+  eq(E.checkModule(mini({ content: [{ type: 'code', code: '' }] })).errors.length, 1, 'empty code block rejected');
+  eq(E.checkModule(mini({ content: [{ type: 'code', code: 'x', file: '../evil.sh' }] })).errors.length, 1, 'code file name with a path rejected');
+  eq(E.checkModule(mini({ practice: { tasks: [{ id: 'n', type: 'number', answer: 2.5, tolerance: 0.1, unit: 'mA' }] } })).errors, [], 'number with unit accepted');
   console.log(fails ? `engine: ${fails} failed` : 'engine tests ok');
 
   /* ---------- 2. modules ---------- */

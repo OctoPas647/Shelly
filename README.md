@@ -2,22 +2,23 @@
 
 A Duolingo-style learning app that is **an empty shell**. Everything you study comes from **modules**: single `.zip` files with lessons, tests and full practice exams that you add, remove, reset and share inside the app. Nothing about any subject is built into the app itself.
 
-The first two modules are small demos of the Bulgarian state matriculation exams (ДЗИ): **БЕЛ** and **математика**.
+The first modules are small demos of the Bulgarian state matriculation exams (ДЗИ): **БЕЛ** and **математика**, and **Arduino Bench**, a full hands-on electronics course.
 
 ## Download
 
 | What | File |
 |---|---|
-| Android app | [`downloads/Shelly-0.1.0.apk`](downloads/Shelly-0.1.0.apk) |
+| Android app | [`downloads/Shelly-0.2.0.apk`](downloads/Shelly-0.2.0.apk) |
 | Demo module: ДЗИ по БЕЛ | [`downloads/modules/matura-bel.zip`](downloads/modules/matura-bel.zip) |
 | Demo module: ДЗИ по математика | [`downloads/modules/matura-math.zip`](downloads/modules/matura-math.zip) |
+| Module: Arduino Bench (electronics, English) | [`downloads/modules/arduino-bench.zip`](downloads/modules/arduino-bench.zip) |
 
 Install the APK, download a module `.zip` on the phone, then in Shelly tap **Добави модул** (Add a module) and pick the file. You can also open a module `.zip` straight from a file manager or a chat app with **Open with → Shelly**.
 
-## What the app does (version 0.1)
+## What the app does (version 0.2)
 
 - **Library** of modules, with streak and XP across all of them.
-- **Lessons** with text, notes, formulas (LaTeX), pictures, audio and video, each paired with its own test.
+- **Lessons** with text, notes, tables, formulas (LaTeX), code with a Copy button, pictures, audio and video, each paired with its own test.
 - **8 task types**: one choice, several choices, typed text, typed number, fill the blanks (typed, picked, or from a word bank), put in order, match pairs, and written answers graded with a rubric.
 - **Practice exams** that copy the real exam: timed parts, a navigator, flags, no answers until the end, self-grading of written tasks, and a result on the module's own scale (for example *Добър 4,22* for the matura).
 - **Scoring comes from the module**: each module describes how points become its result (matura grade, IELTS band, percent…).
@@ -53,7 +54,8 @@ app/
   css/                   styles
   vendor/                KaTeX (math)
 assets/                  fonts (Sofia Sans, KaTeX) and launcher icons
-modules/                 module sources: one folder per module (NOT part of the app)
+modules/                 modules: one folder per module (NOT part of the app)
+modules-src/             editable sources that generate a module (Arduino Bench: YAML, sketches, schematics)
 downloads/               ready files: the APK and packed modules
 platforms/android/       the Android wrapper (WebView, file picker, save/send, "Open with")
 tools/                   build.py, check.js, config.json

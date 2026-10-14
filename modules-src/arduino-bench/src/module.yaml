@@ -1,0 +1,115 @@
+id: arduino-bench
+version: 1.0.0
+title: Arduino Bench
+subtitle: Electrical engineering you can hold in your hand
+localized:
+  bg:
+    title: Ардуино работилница
+    subtitle: Електротехника, която пипаш с ръце
+subject: Electronics & electrical engineering
+language: en
+level: intermediate
+icon: assets/icon.svg
+accent: "#E8742C"
+author: Arduino Bench for Shelly
+license: CC BY-SA 4.0
+description: |
+  A hands-on electrical-engineering course built around an Arduino Uno and a
+  breadboard. Every unit pairs real theory (Ohm, Kirchhoff, RC circuits, diodes,
+  transistors, ADCs, timers, motors, serial protocols, power) with a lab where you
+  PREDICT a value, BUILD the circuit, MEASURE it with your multimeter and compare.
+  You'll build an LED curve tracer, a capacitance meter, a 555 + Arduino frequency
+  counter, a sonar theremin, a sun-tracking servo, an optical serial link you
+  decode yourself, and finally your own 4-mode bench meter and a homemade
+  oscilloscope. Written for people who already know how to blink an LED.
+
+hardware:
+  board: "Arduino Uno R3 (or a Nano / Uno clone with an ATmega328P). Uno R4 notes are in the lessons where they matter."
+  tools:
+    - "Digital multimeter (DC volts, DC mA, ohms, diode test; capacitance mode is a bonus)"
+    - "USB cable, computer with Arduino IDE 2"
+    - "Ruler or tape measure (Unit 8)"
+  required:
+    - {item: "830-point breadboard + jumper wires", qty: 1}
+    - {item: "Resistors: 220 Ω, 330 Ω, 1 kΩ, 10 kΩ, 100 kΩ, 1 MΩ", qty: "~5 each (10 × 10 kΩ, 10 × 1 kΩ)"}
+    - {item: "LEDs: red, green, blue or white (+ yellow)", qty: "~12"}
+    - {item: "Push buttons", qty: 2}
+    - {item: "10 kΩ potentiometer", qty: 2}
+    - {item: "Photoresistor (LDR)", qty: 2}
+    - {item: "10 kΩ NTC thermistor", qty: 1}
+    - {item: "Capacitors: 100 nF ceramic (104), 10 µF and 100 µF electrolytic", qty: "2 each"}
+    - {item: "1N4007 diode", qty: 2}
+    - {item: "NPN transistor PN2222 or S8050", qty: 2}
+    - {item: "74HC595 shift register", qty: 1}
+    - {item: "1-digit 7-segment display, common cathode", qty: 1}
+    - {item: "LCD1602 (HD44780, parallel)", qty: 1}
+    - {item: "Passive buzzer", qty: 1}
+    - {item: "HC-SR04 ultrasonic sensor", qty: 1}
+    - {item: "SG90 micro servo", qty: 1}
+    - {item: "Small DC motor (3–6 V) + fan blade", qty: 1}
+    - {item: "L293D H-bridge driver", qty: 1}
+    - {item: "Breadboard power-supply module + 9 V battery or 9 V adapter", qty: 1}
+  optional:
+    - {item: "NE555 timer (Unit 9, Capstones) — very cheap, worth buying 3", qty: 2}
+    - {item: "10 nF ceramic capacitor (103) for the 555's CTRL pin", qty: 1}
+    - {item: "28BYJ-48 stepper + ULN2003 board (Unit 10 bonus lab)", qty: 1}
+    - {item: "DHT11 temperature sensor (reference thermometer for Unit 7)", qty: 1}
+    - {item: "470 µF electrolytic capacitor (servo supply)", qty: 1}
+    - {item: "Paper straw / heat-shrink tube (Unit 11 light shield)", qty: 1}
+
+safety:
+  - "Nothing in this module touches mains (230 V). Never connect anything here to a wall socket."
+  - "Arduino pins take 0–5 V only. Never put a negative voltage or more than 5 V on any pin — use a divider."
+  - "A single pin: 20 mA recommended, 40 mA absolute maximum. The whole chip: 200 mA."
+  - "Electrolytic capacitors have polarity: stripe = minus. Reversed, they can bulge or pop."
+  - "Motors and servos get their own supply when possible. Always connect the grounds together."
+  - "Measure current with the meter in SERIES and the red lead in the mA socket. Move it back to V afterwards — a meter left on mA shorts whatever you probe next."
+  - "If something gets hot or smells, unplug USB first, think second."
+
+scoring:
+  name: Bench Points
+  short: BP
+  taskPoints:
+    mcq: 1
+    truefalse: 1
+    fill: 1
+    resistor: 1
+    multi: 2
+    numeric: 2
+    order: 2
+    match: 2
+    codeline: 2
+    measure: 3
+    record: 1
+  measureGrading:
+    full: "Reading within tolerance of the expected value → full points"
+    half: "Within 2 × tolerance → half points and the 'close — check your wiring/part values' hint"
+    zero: "Further off → 0 points and the lab's troubleshooting list"
+  unitStars:
+    - {stars: 1, rule: "Lab built: every build step of every lab in the unit ticked"}
+    - {stars: 2, rule: "Unit quiz ≥ 70 %"}
+    - {stars: 3, rule: "Unit quiz ≥ 90 % AND every measure task in the unit's labs within tolerance"}
+  capstoneStars:
+    - {stars: 1, rule: "Built and running"}
+    - {stars: 2, rule: "All verification measurements within tolerance"}
+    - {stars: 3, rule: "Plus at least one challenge completed (self-reported)"}
+  ranks:
+    - {name: Breadboarder, minStars: 0}
+    - {name: Technician, minStars: 10}
+    - {name: Circuit Designer, minStars: 22}
+    - {name: Bench Engineer, minStars: 34}
+    - {name: Chief Engineer, minStars: 45, alsoRequires: "Final exam with distinction"}
+  finalExam:
+    totalPoints: 100
+    pass: 70
+    distinction: 90
+    minutes: 75
+    unlock: "At least 8 units with 2★ or more"
+    badges:
+      pass: Bench License
+      distinction: Bench License — with distinction
+  flashcards:
+    system: Leitner
+    boxes: 5
+    intervalDays: [1, 2, 4, 8, 16]
+    rule: "Right → move up one box. Wrong → back to box 1."

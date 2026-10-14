@@ -1,7 +1,7 @@
 {
   "appName": "Shelly",
-  "version": "0.1.0",
-  "androidVersionCode": 1,
+  "version": "0.2.0",
+  "androidVersionCode": 2,
   "androidPackage": "app.shelly",
   "androidMinSdk": 24,
   "androidTargetSdk": 34,

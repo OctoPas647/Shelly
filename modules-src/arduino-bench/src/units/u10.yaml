@@ -1,0 +1,278 @@
+id: u10
+number: 10
+title: Motion & Feedback
+tagline: H-bridges, servos, steppers — and your first closed control loop
+minutes: 130
+difficulty: 4
+objectives:
+  - "Drive a DC motor in both directions with an H-bridge, and know brake vs coast"
+  - "Explain the voltage lost in a bipolar driver like the L293D"
+  - "Generate servo pulses and understand what's inside a hobby servo"
+  - "Build and tune a proportional controller (the sun tracker) and see what too much gain does"
+
+study:
+  body: |
+    ### The DC motor as a circuit
+    A spinning motor is also a generator. It produces a **back-EMF** proportional to its speed that opposes the supply: I = (V − E_back) / R_winding. At standstill E_back = 0, so the **stall current** is V / R — often 3–10× the running current. That's the spike that resets Arduinos sharing a supply with a motor.
+
+    ### The H-bridge
+    Four switches arranged like the letter H with the motor as the crossbar. Close top-left + bottom-right → current flows one way. Close the other diagonal → it flows the other way. Two forbidden states: both switches on the **same side** on at once = a dead short across the supply (**shoot-through**). Driver chips prevent this for you.
+
+    L293D logic (EN high):
+
+    | 1A | 2A | Motor |
+    |---|---|---|
+    | H | L | forward |
+    | L | H | reverse |
+    | L | L | **brake** — both terminals tied together, back-EMF current stops it fast |
+    | H | H | **brake** (same idea, tied to +V) |
+    | EN LOW: any | any | **coast** — outputs float, it spins down freely |
+
+    The L293D uses bipolar (Darlington-style) output transistors. Each conducting switch drops more than a volt, and two are in the path, so the motor typically sees **~1.5–3 V less than the supply**, more at higher currents. That lost voltage × current becomes heat. MOSFET drivers (TB6612FNG, DRV8833) lose a fraction of that — a good reason they replaced it. The "D" in L293D means the flyback diodes from Unit 4 are built in.
+
+    ### Servos are closed-loop systems in a box
+    A hobby servo contains a motor, a gearbox, a potentiometer on the output shaft and a small controller. You send a pulse every **20 ms (50 Hz)**; the pulse **width** is the target angle: ~1.0 ms at one end, **1.5 ms in the middle**, ~2.0 ms at the other (many SG90s accept ~0.5–2.4 ms for the full 180°). The controller compares the target with the pot and drives the motor to remove the difference. Moving servos draw current spikes of several hundred mA — give them a capacitor and ideally their own 5 V.
+
+    ### Steppers are open-loop
+    A stepper moves a fixed angle per coil pattern step. The 28BYJ-48 has 32 steps per motor revolution and a ~64:1 gearbox → **~2048 steps per output revolution** in full-step mode. No sensor: the Arduino assumes every step happened. Push it too fast and it silently skips steps, and from then on its position is wrong. The ULN2003 board is a Darlington array with built-in flyback diodes.
+
+    ### Closing the loop: proportional control
+    Every controller has the same parts: a **setpoint** (what you want), a **measurement**, the **error** = setpoint − measurement, and an **action**. The simplest useful one:
+
+    **action = K_P · error**
+
+    In the sun tracker, the error is the difference between the left and right LDR readings, and the action moves the servo. Small K_P: slow but stable. Bigger K_P: faster… until it **overshoots**, swings back, and **oscillates**. A **deadband** ignores tiny errors so it doesn't twitch at noise. Real systems add an Integral term (removes leftover steady error) and a Derivative term (damps overshoot): that's **PID**, the most used algorithm in all of engineering.
+  formulas:
+    - {name: "Motor current", formula: "I = (V − E_back) / R_winding;  stall: I = V / R"}
+    - {name: "Driver loss", formula: "P_driver ≈ V_drop · I"}
+    - {name: "Servo pulse", formula: "every 20 ms; 1.0 ms ↔ 0°, 1.5 ms ↔ 90°, 2.0 ms ↔ 180° (approx.)"}
+    - {name: "Stepper angle", formula: "angle = steps / 2048 × 360°  (28BYJ-48, full step)"}
+    - {name: "P controller", formula: "u = K_P · e,  e = setpoint − measurement"}
+  media:
+    - {image: u10_hbridge, caption: "L293D: logic supply on pin 16, motor supply on pin 8, PWM on EN1,2, direction on 1A/2A."}
+    - {image: u10_sun_tracker, caption: "Two LDR dividers (A0, A1) and a servo with its own reservoir capacitor."}
+    - {image: u10_stepper, caption: "Bonus: 28BYJ-48 stepper through the ULN2003 board."}
+
+labs:
+  - id: lab1
+    title: Forward, Reverse, Brake, Coast
+    goal: Control speed and direction with one knob and measure what the L293D costs you in volts.
+    minutes: 40
+    parts:
+      - "L293D, DC motor, 10 kΩ potentiometer"
+      - "Breadboard power module (motor supply)"
+      - "Arduino Uno, multimeter"
+    schematic: u10_hbridge
+    sketch: u10_hbridge
+    wiring:
+      - ["L293D pin 16 (VCC1)", "Arduino 5V"]
+      - ["L293D pin 8 (VCC2)", "power module + (motor supply)"]
+      - ["L293D pins 4, 5, 12, 13", "GND (power module GND + Arduino GND together)"]
+      - ["pin 1 (EN1,2) / pin 2 (1A) / pin 7 (2A)", "D5 / D4 / D3"]
+      - ["pins 3 and 6", "motor leads"]
+      - ["pot", "5V / wiper → A0 / GND"]
+    steps:
+      - "Upload u10_hbridge. Centre the pot (stop), turn right (forward), turn left (reverse)."
+      - type: record
+        q: "Motor supply voltage at pin 8 (meter)."
+        unit: V
+      - type: record
+        q: "Voltage across the motor terminals (pin 3 to pin 6) at full speed."
+        unit: V
+      - type: numeric
+        q: "Example: supply 5.0 V, the motor sees 2.9 V while drawing 150 mA. How much power does the L293D turn into heat?"
+        answer: 0.315
+        calc: "(5.0 - 2.9) * 0.150"
+        unit: W
+        tol: 2%
+        explain: "2.1 V × 0.15 A = 0.32 W in the driver, vs ~0.44 W delivered to the motor. Bipolar drivers are inefficient."
+      - "Spin it fast, then centre the pot. Send 'b' to switch between BRAKE and COAST and compare."
+      - type: mcq
+        q: "Which stops faster, and why?"
+        options:
+          - "Coast — the motor is disconnected"
+          - "Brake — the shorted terminals let the back-EMF drive a current that opposes the rotation"
+          - "Both the same"
+          - "Neither stops"
+        answer: 1
+        explain: "A spinning motor is a generator. Shorting it makes it work against itself (dynamic braking)."
+    observe: |
+      The motor sees noticeably less than the supply voltage. Brake stops it in a fraction of a second, coast lets it run down.
+    troubleshooting:
+      - ["Motor only spins one way", "1A or 2A not connected (D4/D3)."]
+      - ["Nothing moves, chip gets warm", "Pin 8 has no motor supply, or a GND pin is missing — use all four GND pins, they're also the heatsink."]
+      - ["Arduino resets", "Motor powered from the Arduino's 5V. Use the power module."]
+    challenges:
+      - "Add a soft-start: ramp the PWM over 500 ms instead of jumping. Measure the supply dip with your meter's min/max mode (if it has one)."
+
+  - id: lab2
+    title: Sun Tracker
+    goal: Build a servo that turns towards the light, then tune its gain until it oscillates — and back.
+    minutes: 50
+    parts:
+      - "SG90 servo, 2 × LDR, 2 × 10 kΩ"
+      - "470 µF (or 100 µF) electrolytic, cardboard"
+      - "Phone flashlight as the 'sun'"
+    schematic: u10_sun_tracker
+    sketch: u10_sun_tracker
+    wiring:
+      - ["LDR left divider", "5V → LDR → A0 node → 10 kΩ → GND"]
+      - ["LDR right divider", "5V → LDR → A1 node → 10 kΩ → GND"]
+      - ["servo signal (orange)", "D9"]
+      - ["servo red / brown", "5V / GND, with the 470 µF across them"]
+    steps:
+      - "Tape both LDRs to the servo horn, side by side, with a small cardboard wall between them pointing outwards — each LDR is shaded when the light comes from the other side."
+      - type: numeric
+        q: "Servo pulses repeat at 50 Hz. What is the period?"
+        answer: 20
+        calc: "1000 / 50"
+        unit: ms
+        tol: 0
+        explain: "1/50 s = 20 ms. The 1–2 ms pulse width inside each period sets the angle."
+      - "Upload u10_sun_tracker, open the Serial Plotter, move the flashlight slowly in an arc. If the servo turns AWAY from the light, send 'x'."
+      - "Press '+' a few times (each ×1.5) until the servo overshoots and wobbles around the light."
+      - type: record
+        q: "KP_x1000 value where it starts to oscillate."
+        unit: ""
+      - "Press '-' until it's stable again. Now press '[' to shrink the deadband to 0."
+      - type: mcq
+        q: "With deadband 0, the servo jitters even when the light is still. Why?"
+        options:
+          - "The servo is broken"
+          - "ADC noise makes the error a few counts off zero all the time, and the controller reacts to every bit of it"
+          - "The light flickers at 50 Hz"
+          - "KP is too small"
+        answer: 1
+        explain: "A deadband ignores errors smaller than the noise. Too big a deadband → it stops before pointing exactly at the light."
+    observe: |
+      At a good gain the horn swings to the light in under a second and stops. Too much gain and it hunts back and forth — the textbook picture of an unstable feedback loop.
+    troubleshooting:
+      - ["Servo twitches/resets the Arduino", "Add the capacitor, or power the servo from the power module (common ground!)."]
+      - ["Error never reaches zero", "LDRs differ a lot. Add a constant offset in code: error = left − right − OFFSET."]
+    challenges:
+      - "Add an integral term: integral += error; angle += KP·error + KI·integral (with a small KI and a limit on integral). Does it point more exactly?"
+
+  - id: lab3
+    title: "Bonus: Stepper that Follows a Knob"
+    goal: Feel the difference between open-loop (stepper) and closed-loop (servo) positioning.
+    minutes: 25
+    optional: true
+    parts:
+      - "28BYJ-48 + ULN2003 board, 10 kΩ pot"
+      - "Power module (5 V)"
+    schematic: u10_stepper
+    sketch: u10_stepper
+    wiring:
+      - ["ULN2003 IN1–IN4", "D8–D11"]
+      - ["ULN2003 + / −", "power module 5 V / GND (common GND)"]
+      - ["pot wiper", "A0"]
+    steps:
+      - type: numeric
+        q: "How many steps does the 28BYJ-48 need to turn 90°?"
+        answer: 512
+        calc: "2048 / 4"
+        unit: steps
+        tol: 0
+        explain: "2048/4 = 512."
+      - "Upload u10_stepper and turn the pot. Put a piece of tape on the shaft as a pointer."
+      - "Hold the shaft firmly while turning the pot, then let go."
+      - type: mcq
+        q: "After you held the shaft, the pointer no longer matches the knob. Why?"
+        options:
+          - "The pot drifted"
+          - "Steps were skipped while blocked, but the Arduino counted them anyway — there's no feedback"
+          - "The ULN2003 overheated"
+          - "Steppers can't hold position"
+        answer: 1
+        explain: "Open-loop: position is assumed, not measured. Real 3D printers 'home' against a switch for exactly this reason."
+    observe: |
+      Smooth, precise movement — until something blocks it. Then the Arduino and the shaft disagree forever.
+    troubleshooting:
+      - ["Motor vibrates but doesn't turn", "Pin order: the Stepper object must be (8, 10, 9, 11) for IN1, IN3, IN2, IN4."]
+    challenges:
+      - "Add a homing switch: at startup, step slowly until a button is pressed, call that position 0."
+
+quiz:
+  - type: mcq
+    q: "In an H-bridge, what is shoot-through?"
+    options:
+      - "The motor spinning too fast"
+      - "Both switches on the same side conducting at once — a short circuit across the supply"
+      - "Current flowing through the flyback diodes"
+      - "Running two motors from one chip"
+    answer: 1
+    explain: "Always avoided by driver logic and 'dead time' between switching."
+  - type: numeric
+    q: "A motor's winding resistance is 8 Ω. Stall current at 6 V?"
+    answer: 0.75
+    calc: "6 / 8"
+    unit: A
+    tol: 1%
+    explain: "No back-EMF at standstill → I = V/R = 0.75 A, more than the L293D's 600 mA continuous rating."
+  - type: numeric
+    q: "Your motor needs 4.5 V and the L293D drops 2.5 V in total. Minimum motor supply?"
+    answer: 7.0
+    calc: "4.5 + 2.5"
+    unit: V
+    tol: 1%
+    explain: "Supply must cover the motor voltage plus the driver's losses."
+  - type: numeric
+    q: "What pulse width (ms) puts a standard servo in its middle position?"
+    answer: 1.5
+    calc: "1.5"
+    unit: ms
+    tol: 3%
+    explain: "~1.5 ms every 20 ms. The exact endpoints vary between servo models."
+  - type: numeric
+    q: "A 28BYJ-48 runs at 12 rpm. How many steps per second is the Arduino sending?"
+    answer: 409.6
+    calc: "12 * 2048 / 60"
+    unit: steps/s
+    tol: 1%
+    explain: "12 rev/min × 2048 steps/rev / 60 s ≈ 410 steps/s."
+  - type: mcq
+    q: "In a proportional controller, what usually happens if K_P is far too high?"
+    options:
+      - "The system becomes slower"
+      - "It overshoots and oscillates around the setpoint"
+      - "The error becomes exactly zero"
+      - "The motor stops"
+    answer: 1
+    explain: "Too much gain = over-reaction. That's instability."
+  - type: match
+    q: "Match each actuator to how it knows its position."
+    pairs:
+      - ["DC motor (bare)", "It doesn't — speed only"]
+      - ["Hobby servo", "Internal potentiometer, closed loop"]
+      - ["Stepper", "Counts steps, open loop"]
+      - ["Motor + encoder", "Measures rotation pulses, closed loop"]
+    explain: "Closed loop measures; open loop assumes."
+  - type: truefalse
+    q: "The 'D' in L293D means it has built-in flyback (clamp) diodes."
+    answer: true
+    explain: "The plain L293 needs external diodes."
+  - type: codeline
+    q: "The servo jitters and pins 9 and 10 can't fade an LED any more. Which line explains the LED part?"
+    code: |
+      #include <Servo.h>
+      Servo s;
+      void setup() {
+        s.attach(9);
+        pinMode(10, OUTPUT);
+      }
+      void loop() {
+        analogWrite(10, 128);
+      }
+    answer: 4
+    explain: "The Servo library takes over Timer1, which also generates PWM on pins 9 and 10. Move the LED to pin 3, 5, 6 or 11."
+
+flashcards:
+  - ["Back-EMF", "Voltage a spinning motor generates against the supply; ∝ speed"]
+  - ["Stall current", "V / R_winding — the big inrush spike"]
+  - ["H-bridge brake vs coast", "Brake: terminals shorted (fast stop). Coast: outputs floating."]
+  - ["Shoot-through", "Both switches on one side on → supply short"]
+  - ["L293D drawback", "Bipolar outputs lose ~1.5–3 V total → heat"]
+  - ["Servo signal", "50 Hz, pulse ~1–2 ms sets angle (1.5 ms = middle)"]
+  - ["28BYJ-48 steps per revolution", "≈ 2048 (full-step)"]
+  - ["P controller", "u = K_P · error; too much gain → oscillation"]
+  - ["PID", "Proportional + Integral (kills steady error) + Derivative (damps overshoot)"]

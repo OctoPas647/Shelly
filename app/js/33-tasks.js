@@ -227,13 +227,16 @@ const TASK_BUILDERS = {
 function fieldBuilder(task, m, resp, changed, numeric) {
   let val = resp ?? '', area;
   return {
-    html: `<input class="field${numeric ? ' num' : ''}" ${numeric ? 'inputmode="decimal"' : ''} autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="${esc(numeric ? t('task.numHint') : t('task.typeHint'))}" value="${esc(val)}">`,
+    html: (() => {
+      const input = `<input class="field${numeric ? ' num' : ''}" ${numeric ? 'inputmode="decimal"' : ''} autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="${esc(numeric ? t('task.numHint') : t('task.typeHint'))}" value="${esc(val)}">`;
+      return numeric && task.unit ? `<div class="field-unit">${input}<span class="unit">${esc(task.unit)}</span></div>` : input;
+    })(),
     mount(a) { area = a; const f = a.querySelector('input'); f.addEventListener('input', () => { val = f.value; changed(); }); f.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); f.dispatchEvent(new CustomEvent('submit-answer', { bubbles: true })); } }); },
     get: () => val,
     show(res) {
       const f = area.querySelector('input'); f.classList.add(res.status === 'right' ? 'right' : 'wrong');
       if (res.status === 'right') return '';
-      const ans = numeric ? fmtNum(task.answer, m.lang, Number.isInteger(task.answer) ? 0 : undefined) : esc(arr(task.answer)[0]);
+      const ans = numeric ? esc(fmtSig(task.answer, m.lang) + (task.unit ? '\u00A0' + task.unit : '') + (task.tolerance > 0 ? ` (± ${fmtSig(task.tolerance, m.lang, 2)})` : '')) : esc(arr(task.answer)[0]);
       return solutionLine(t('task.correctIs'), ans);
     }
   };

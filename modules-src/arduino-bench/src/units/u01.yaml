@@ -1,0 +1,225 @@
+id: u01
+number: 1
+title: Divider Detective
+tagline: Ohm, Kirchhoff, and why your voltmeter lies to you a little
+minutes: 100
+difficulty: 2
+objectives:
+  - "Apply Ohm's law, power and both Kirchhoff laws to real circuits"
+  - "Replace any divider with its Thevenin equivalent and predict loading"
+  - "Understand what the ADC's reference voltage does to every reading"
+  - "Measure your Arduino's real 5 V rail with its internal bandgap reference"
+
+study:
+  body: |
+    ### Three laws you'll use every day
+    **Ohm:** V = I · R. **Power:** P = V · I = I² · R = V² / R.
+    **KCL (current law):** the currents into a node add up to the currents out of it — charge doesn't pile up in a wire.
+    **KVL (voltage law):** going around any closed loop, the voltage rises and drops add up to zero.
+
+    ### The voltage divider
+    Two resistors in series between Vin and ground. The same current flows through both (KCL), so each one takes a share of the voltage proportional to its resistance (KVL + Ohm):
+
+    **Vout = Vin · R2 / (R1 + R2)**
+
+    It's the most used circuit in electronics: sensors (Unit 7), level shifting, measuring voltages above 5 V (Capstone 1), biasing.
+
+    ### The catch: loading
+    That formula assumes **nothing** is connected to Vout. Connect a load R_L and it sits in parallel with R2:
+
+    **Vout = Vin · (R2 ∥ R_L) / (R1 + R2 ∥ R_L)**, where R2 ∥ R_L = R2·R_L / (R2 + R_L)
+
+    The clean way to think about it is **Thevenin's theorem**: any linear circuit seen from two terminals behaves like *one voltage source in series with one resistor*. For a divider:
+
+    - V_th = Vin · R2 / (R1 + R2) (the unloaded output)
+    - R_th = R1 ∥ R2 (turn Vin into a wire and look back in)
+
+    A 10 k/10 k divider has R_th = 5 kΩ. A 1 M/1 M divider has R_th = 500 kΩ — a hundred times "weaker". Your multimeter's 10 MΩ input is a load too: on the 1 M/1 M divider it pulls the reading from 2.50 V down to about 2.38 V. You'll measure this.
+
+    ### What the ADC actually measures
+    analogRead() returns **ADC = Vin × 1024 / Vref**, from 0 to 1023. On the Uno, Vref defaults to the **5 V rail itself** (AVcc). So a reading is only as good as your 5 V rail. If USB gives you 4.80 V and your code assumes 5.00, every voltage is 4 % too high.
+
+    Fix: the ATmega328P has an internal **1.1 V bandgap reference**. Measure *it* with AVcc as reference: ADC = 1.1 × 1024 / Vcc, so **Vcc = 1.1 × 1024 / ADC**. The bandgap varies chip to chip (about 1.0–1.2 V), so you calibrate it once against your multimeter and then your Arduino knows its own supply.
+
+    ### Why the ADC wants R_th ≤ 10 kΩ
+    Inside the ADC is a tiny *sample-and-hold* capacitor (~14 pF). When analogRead() starts, it connects that cap to the pin for a short window. If your source is weak (high R_th), the cap doesn't fully charge — especially right after it held a different channel's voltage. The datasheet recommends ≤ 10 kΩ source impedance. The 1 M/1 M divider breaks that rule on purpose so you can see what happens. The usual fixes: lower resistor values, a dummy read after switching channels, or a 100 nF capacitor from the pin to ground (a local charge reservoir).
+
+    > **Uno R4 note:** the R4 ADC is different (12–14 bit, `analogReadResolution()`), and the bandgap trick in this lab's sketch is ATmega-only. Everything else applies.
+  formulas:
+    - {name: "Ohm's law", formula: "V = I · R"}
+    - {name: "Power", formula: "P = V · I = I²R = V²/R"}
+    - {name: "Divider", formula: "Vout = Vin · R2 / (R1 + R2)"}
+    - {name: "Parallel", formula: "R1 ∥ R2 = R1·R2 / (R1 + R2)"}
+    - {name: "Thevenin of a divider", formula: "Vth = Vin·R2/(R1+R2),  Rth = R1 ∥ R2"}
+    - {name: "ADC (Uno)", formula: "ADC = Vin · 1024 / Vref"}
+    - {name: "Supply from bandgap", formula: "Vcc = Vbg · 1024 / ADC(bandgap)"}
+  media:
+    - {image: u01_dividers, caption: "Left: a 'stiff' 10 k/10 k divider (R_th = 5 kΩ). Right: a 'weak' 1 M/1 M divider (R_th = 500 kΩ)."}
+
+labs:
+  - id: lab1
+    title: Divider Detective
+    goal: Predict, build and measure a stiff and a weak divider — with the meter and with the Arduino — and catch loading in the act.
+    minutes: 60
+    parts:
+      - "2 × 10 kΩ, 2 × 1 MΩ resistors"
+      - "Jumpers, multimeter"
+      - "Arduino Uno"
+    schematic: u01_dividers
+    sketch: u01_voltmeter
+    wiring:
+      - ["Arduino 5V", "top of R1 and top of R3"]
+      - ["R1/R2 junction", "A0"]
+      - ["R3/R4 junction", "A1"]
+      - ["bottom of R2 and R4", "Arduino GND"]
+    steps:
+      - type: numeric
+        q: "Predict: Vout of the 10 k/10 k divider fed with exactly 5.00 V."
+        answer: 2.5
+        calc: "5 * 10e3 / (10e3 + 10e3)"
+        unit: V
+        tol: 1%
+        explain: "Equal resistors split the voltage in half."
+      - type: numeric
+        q: "Predict: the current flowing through the 10 k/10 k divider, in mA."
+        answer: 0.25
+        calc: "5 / 20e3 * 1000"
+        unit: mA
+        tol: 2%
+        explain: "5 V / 20 kΩ = 0.25 mA. A divider always wastes some current — here 1.25 mW."
+      - "Build both dividers on the breadboard from the schematic. Don't connect A0/A1 yet."
+      - type: measure
+        q: "Meter on DC V: measure the 10 k/10 k midpoint (A0 node) to GND."
+        expected: 2.5
+        calc: "5 * 0.5"
+        unit: V
+        tol: 5%
+        explain: "If your 5 V rail is 4.9 V, expect 2.45 V. The divider scales whatever the supply really is."
+      - type: numeric
+        q: "Predict what a 10 MΩ multimeter will read on the 1 M/1 M midpoint (5.00 V supply). Hint: R4 ∥ 10 MΩ."
+        answer: 2.381
+        calc: "5 * (1e6*10e6/(1e6+10e6)) / (1e6 + (1e6*10e6/(1e6+10e6)))"
+        unit: V
+        tol: 1%
+        explain: "1 MΩ ∥ 10 MΩ = 0.909 MΩ, so Vout = 5 × 0.909 / 1.909 = 2.38 V. The meter changed the thing it measured."
+      - type: measure
+        q: "Now measure the 1 M/1 M midpoint (A1 node) with your meter."
+        expected: 2.381
+        calc: "5 * (1e6*10e6/(1e6+10e6)) / (1e6 + (1e6*10e6/(1e6+10e6)))"
+        unit: V
+        tol: 4%
+        explain: "Close to 2.38 V instead of 2.50 V = loading. (Some cheap meters have 1 MΩ input: then you'd see 1.67 V!)"
+      - "Connect the R1/R2 midpoint to A0 and the R3/R4 midpoint to A1. Upload u01_voltmeter and open the Serial Monitor at 115200."
+      - "Measure your 5V pin with the meter. Type numbers like 1080, 1100, 1120 into the Serial Monitor until the sketch's Vcc matches your meter (that's your chip's bandgap in mV)."
+      - type: record
+        q: "Your calibrated bandgap value (you'll reuse it in Capstone 1)."
+        unit: mV
+      - type: record
+        q: "A0 'V(real Vcc)' reading from the sketch."
+        unit: V
+      - type: record
+        q: "A1 'V(real Vcc)' reading from the sketch."
+        unit: V
+      - "Edit the sketch: delete the line `analogRead(pin);  // dummy read` in readAveraged(), upload again, and watch A1."
+      - type: mcq
+        q: "What happened to the A1 reading without the dummy read?"
+        options:
+          - "Nothing changed at all"
+          - "It moved (usually towards the A0 value / became less stable)"
+          - "It became exactly 2.50 V"
+          - "The Arduino reset"
+        answer: 1
+        explain: "With 500 kΩ source impedance, the ADC's sample cap still 'remembers' the previous channel (A0). The dummy read gives it time to settle. On the stiff A0 divider you won't see any difference."
+    observe: |
+      The stiff divider reads the same everywhere. The weak one reads differently depending on WHAT you measure it with — the meter, the ADC, or the ADC right after another channel. That's loading and source impedance, and it's why sensor dividers in this course use 10 kΩ.
+    troubleshooting:
+      - ["A0 reads 1023", "The midpoint is connected to 5 V — check that A0 goes to the junction, not the top."]
+      - ["Vcc shows something crazy like 20 V", "You typed a value outside 900–1300; the sketch ignores those. Reset and type again."]
+      - ["Readings jump around by several counts", "Normal ADC noise is ±1–2 counts. More than that: loose jumper or long wires near the motor/USB cable."]
+    challenges:
+      - "Add a 100 nF capacitor from A1 to GND (keep the dummy read deleted). Does the 1 M/1 M reading become stable again? Explain why with the sample-and-hold cap."
+      - "Switch the ADC reference to the internal 1.1 V with analogReference(INTERNAL) and measure a divider that outputs < 1 V (e.g. 100 kΩ over 10 kΩ). Compare the resolution."
+
+quiz:
+  - type: numeric
+    q: "R1 = 22 kΩ on top, R2 = 10 kΩ at the bottom, Vin = 5 V. Unloaded Vout?"
+    answer: 1.5625
+    calc: "5 * 10e3 / (22e3 + 10e3)"
+    unit: V
+    tol: 2%
+    explain: "5 × 10 / 32 = 1.56 V."
+  - type: numeric
+    q: "What is the Thevenin resistance of that 22 k/10 k divider, in kΩ?"
+    answer: 6.875
+    calc: "(22e3 * 10e3 / (22e3 + 10e3)) / 1000"
+    unit: kΩ
+    tol: 2%
+    explain: "22 ∥ 10 = 220/32 = 6.875 kΩ."
+  - type: numeric
+    q: "A 100 Ω resistor sits directly across 5 V. How much power does it dissipate, in watts?"
+    answer: 0.25
+    calc: "5**2 / 100"
+    unit: W
+    tol: 2%
+    explain: "V²/R = 25/100 = 0.25 W — exactly the rating of a typical ¼ W resistor. It will get hot; real designs keep ≥ 2× margin."
+  - type: mcq
+    q: "Three wires meet at a node. 4 mA flows in on wire A, 1 mA flows in on wire B. What flows on wire C?"
+    options: ["3 mA in", "5 mA out", "3 mA out", "5 mA in"]
+    answer: 1
+    explain: "KCL: everything in must come out. 4 + 1 = 5 mA must leave on C."
+  - type: truefalse
+    q: "Using smaller resistors (e.g. 1 k/1 k instead of 100 k/100 k) makes a divider less sensitive to loading but wastes more power."
+    answer: true
+    explain: "Lower R_th = stiffer output, but the divider current I = Vin/(R1+R2) goes up. Every divider is that trade-off."
+  - type: numeric
+    q: "analogRead returns 512 while the real 5V rail is 4.80 V. What is the real input voltage? (ADC = Vin·1024/Vref)"
+    answer: 2.4
+    calc: "512 * 4.80 / 1024"
+    unit: V
+    tol: 1%
+    explain: "512 × 4.80 / 1024 = 2.40 V. Code that assumes 5.00 V would report 2.50 V — 4 % wrong."
+  - type: numeric
+    q: "The bandgap channel reads ADC = 230 and your chip's bandgap is 1.10 V. What is Vcc?"
+    answer: 4.897
+    calc: "1.10 * 1024 / 230"
+    unit: V
+    tol: 1%
+    explain: "Vcc = 1.10 × 1024 / 230 = 4.90 V."
+  - type: mcq
+    q: "Why does the ATmega's ADC prefer sources of 10 kΩ or less?"
+    options:
+      - "Higher resistances overheat the pin"
+      - "Its sample-and-hold capacitor must charge fully during a short sampling window"
+      - "The ADC only works with currents above 1 mA"
+      - "10 kΩ is the internal pull-up value"
+    answer: 1
+    explain: "The ~14 pF sample cap charges through the source resistance. Too high R_th → it doesn't settle in time."
+  - type: codeline
+    q: "This should print the voltage on A0 but always prints 0, 1, 2, 3 or 4. Which line is the bug?"
+    code: |
+      void loop() {
+        int raw = analogRead(A0);
+        float volts = raw * 5 / 1024;
+        Serial.println(volts);
+        delay(500);
+      }
+    answer: 3
+    explain: "raw * 5 / 1024 is computed entirely in integers (the fraction is thrown away) BEFORE being stored in a float. Write raw * 5.0 / 1024.0."
+  - type: order
+    q: "Put the Thevenin method for a loaded divider in order."
+    items:
+      - "Find V_th = unloaded output voltage"
+      - "Short the source and find R_th looking back into the output"
+      - "Draw V_th in series with R_th"
+      - "Attach the load and solve the simple series circuit"
+    explain: "Once you have V_th and R_th, any load is just one more series divider."
+
+flashcards:
+  - ["KCL", "Sum of currents into a node = sum of currents out."]
+  - ["KVL", "Sum of voltage rises and drops around any closed loop = 0."]
+  - ["Divider formula", "Vout = Vin · R2 / (R1 + R2)"]
+  - ["Thevenin resistance of a divider", "R1 ∥ R2 (source replaced by a wire)"]
+  - ["ADC formula on Uno", "ADC = Vin × 1024 / Vref, range 0–1023"]
+  - ["Measuring Vcc with the bandgap", "Vcc = 1.1 V × 1024 / ADC(bandgap). Calibrate the 1.1 V per chip."]
+  - ["ADC source impedance limit", "≤ 10 kΩ recommended (sample-and-hold cap must settle)"]
+  - ["Typical DMM input resistance", "10 MΩ — still a load on megaohm circuits"]

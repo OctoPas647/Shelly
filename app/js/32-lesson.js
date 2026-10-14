@@ -11,14 +11,37 @@ function blockHTML(b) {
         ${b.caption ? `<figcaption>${richInline(b.caption)}</figcaption>` : ''}
         ${b.transcript ? `<details class="transcript"><summary>${esc(t('media.transcript'))}</summary><div class="rt">${rich(b.transcript)}</div></details>` : ''}</figure>`;
     case 'video': return `<figure class="media-video"><video controls playsinline preload="metadata" data-media="${esc(b.src)}"${b.poster ? ` data-poster="${esc(b.poster)}"` : ''}></video>${b.caption ? `<figcaption>${richInline(b.caption)}</figcaption>` : ''}</figure>`;
+    case 'code': {
+      const lines = String(b.code).replace(/\s+$/, '').split('\n').length;
+      return `<figure class="codefig"><div class="code-head" lang="${UI_LANG}"><span class="code-title">${icon('file')}<b>${esc(b.title || b.lang || t('code.code'))}</b><small>${esc(tn('n.lines', lines))}</small></span>
+        <span class="code-btns">${b.file ? `<button class="code-btn" data-code-save="${esc(b.file)}" aria-label="${esc(t('code.save'))}">${icon('download')}</button>` : ''}<button class="code-btn" data-code-copy>${icon('copy')}<span>${esc(t('code.copy'))}</span></button></span></div>
+        ${codeBlockHTML(b.code, b.lang)}${b.caption ? `<figcaption>${richInline(b.caption)}</figcaption>` : ''}</figure>`;
+    }
   }
   return '';
+}
+
+/* Copy text: the Clipboard API where the page may use it, otherwise the old select-and-copy way (works in the Android WebView) */
+async function copyText(text) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch (e) { }
+  const ta = h('<textarea readonly style="position:fixed;top:-1000px;opacity:0"></textarea>'); ta.value = text; document.body.appendChild(ta);
+  ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) { }
+  ta.remove(); return ok;
+}
+function mountCode(el) {
+  el.addEventListener('click', async e => {
+    const c = e.target.closest('[data-code-copy]'), s = e.target.closest('[data-code-save]'); if (!c && !s) return;
+    const code = e.target.closest('.codefig').querySelector('pre code').textContent;
+    if (c) { const ok = await copyText(code); return toast(t(ok ? 'code.copied' : 'code.copyFail'), ok ? 'good' : ''); }
+    Native.saveFile(new Blob([code + '\n'], { type: 'text/plain' }), s.dataset.codeSave, 'save');
+  });
 }
 const blocksHTML = list => list.map(blockHTML).join('');
 
 /* Make media inside `el` work: load sources, wire audio players, tap a picture to see it full size */
 function mountMedia(el, modId) {
   hydrateMedia(el, modId);
+  mountCode(el);
   el.querySelectorAll('[data-player]').forEach(p => {
     const a = p.querySelector('audio'), btn = p.querySelector('.pl-play'), rng = p.querySelector('input'), time = p.querySelector('.pl-time'), sp = p.querySelector('.pl-speed');
     const speeds = [1, 1.25, 1.5, 0.75]; let si = 0, seeking = false;

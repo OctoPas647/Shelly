@@ -93,3 +93,13 @@ code { font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace; font-size: 
 /* Reduce motion */
 .still *, .still *::before, .still *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ----- code blocks and tables (rich text, and the "code" lesson block) ----- */
+.codeblock { margin: 0 0 1em; padding: 12px 14px; background: var(--surface-2); border-radius: var(--r-s); overflow: auto; max-height: 62vh; font-size: .82rem; line-height: 1.45; -webkit-overflow-scrolling: touch; }
+.codeblock code { background: none; padding: 0; font-size: inherit; white-space: pre; display: block; min-width: max-content; }
+.tablewrap { margin: 0 0 1em; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--r-s); box-shadow: inset 0 0 0 1px var(--line); }
+.tablewrap table { border-collapse: collapse; width: 100%; font-size: .92rem; line-height: 1.35; }
+.tablewrap th, .tablewrap td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+.tablewrap th { background: var(--surface-2); font-weight: 750; white-space: nowrap; }
+.tablewrap tr:last-child td { border-bottom: 0; }
+.tablewrap td code { white-space: nowrap; }

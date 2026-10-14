@@ -4,7 +4,7 @@
    See docs/MODULE-FORMAT.md. Pure functions: the build's content check runs this file in Node. */
 const MODULE_FORMAT = 1;
 const TASK_TYPES = ['choice', 'multi', 'text', 'number', 'gaps', 'order', 'match', 'open'];
-const BLOCK_TYPES = ['text', 'note', 'image', 'audio', 'video'];
+const BLOCK_TYPES = ['text', 'note', 'image', 'audio', 'video', 'code'];
 const KNOWN_TOOLS = ['calculator'];
 const GAP_RE = /\[\[(\d+)\]\]/g;
 
@@ -52,6 +52,10 @@ function checkModule(m, files) {
     const b = blockOf(raw);
     if (!isObj(b) || !BLOCK_TYPES.includes(b.type)) return E(at, `unknown block; use one of: ${BLOCK_TYPES.join(', ')}`);
     if ((b.type === 'text' || b.type === 'note') && typeof b.text !== 'string') E(at, 'needs "text"');
+    if (b.type === 'code') {
+      if (typeof b.code !== 'string' || !b.code.trim()) E(at, 'needs "code" (the program text)');
+      if (b.file != null && !(typeof b.file === 'string' && /^[\w][\w .-]{0,79}$/.test(b.file))) E(at, '"file" must be a plain file name like "blink.ino"');
+    }
     if (b.type === 'note' && b.style != null && !['key', 'tip', 'warn'].includes(b.style)) W(at, `unknown note style "${b.style}"`);
     if (['image', 'audio', 'video'].includes(b.type)) mediaPaths(b).forEach(p => checkMedia(at, p));
   }
@@ -85,6 +89,7 @@ function checkModule(m, files) {
       case 'number':
         if (!Number.isFinite(t.answer)) E(at, '"answer" must be a number');
         if (t.tolerance != null && !(t.tolerance >= 0)) E(at, '"tolerance" must be 0 or more');
+        if (t.unit != null && !(typeof t.unit === 'string' && t.unit.length <= 12)) E(at, '"unit" must be short text such as "mA" or "Ω"');
         break;
       case 'gaps': {
         if (typeof t.text !== 'string') { E(at, 'needs "text" with blanks written as [[1]], [[2]]…'); break; }

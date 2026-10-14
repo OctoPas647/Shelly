@@ -138,3 +138,15 @@ figcaption { font-size: .88rem; color: var(--ink-2); margin-top: 6px; text-align
 .switch i { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s var(--ease); }
 .switch.on { background: var(--good); } .switch.on i { transform: translateX(20px); }
 .sample { font-size: 1.5rem; font-weight: 600; letter-spacing: .02em; margin: 10px 0 2px; }
+
+/* ----- "code" lesson block: title bar with copy / save, then the program ----- */
+.codefig { margin: 0 0 1.2em; background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.codefig .codeblock { margin: 0; border-radius: 0; background: var(--surface-2); }
+.codefig figcaption { padding: 0 12px 10px; }
+.code-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 14px; }
+.code-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.code-title b { font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-title small { color: var(--ink-3); white-space: nowrap; }
+.code-btns { display: flex; gap: 6px; flex: none; }
+.code-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); font-weight: 700; font-size: .9rem; }
+:root[data-theme="dark"] .code-btn { color: color-mix(in srgb, var(--accent) 55%, white); }

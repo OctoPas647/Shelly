@@ -1,0 +1,309 @@
+- id: c1
+  number: 1
+  title: The Bench Meter
+  tagline: Your own 4-mode instrument — volts, ohms, capacitance, frequency — on an LCD
+  minutes: 180
+  difficulty: 4
+  builds_on: [u01, u03, u05, u09, u11]
+  objectives:
+    - "Plan a pin budget when several circuits share one microcontroller"
+    - "Combine four measurement front-ends with one mode button and an LCD"
+    - "Calibrate an instrument and analyse its accuracy across its range"
+  study:
+    body: |
+      Every mode of this instrument is a circuit you've already built — the skill now is **system design**: fitting them together without conflicts, calibrating them, and knowing where your meter is accurate and where it isn't.
+
+      ### Pin budget
+
+      | Function | Pins | Why there |
+      |---|---|---|
+      | Frequency input | **D2** | needs an external interrupt (INT0) |
+      | Mode button | **D3** | the only other interrupt-capable pin (polled here, free for later) |
+      | LCD RS, E, D4–D7 | D12, D11, D4–D7 | moved off D2/D3 compared with Unit 11! |
+      | Capacitance charge / discharge | D8 / D9 | |
+      | Continuity buzzer | D10 | tone() uses Timer2 → don't need PWM on 3/11 anyway |
+      | Volts / Cap / Ohms sense | A0 / A1 / A2 | |
+
+      ### The four modes
+      - **VOLTS:** a 30 k / 10 k divider (ratio 4) lets A0 see up to 20 V. The bandgap trick from Unit 1 corrects for your real 5 V rail. DC only, positive only.
+      - **OHMS:** 5 V → 10 kΩ reference → A2 → Rx → GND. Ratiometric (Unit 7): **Rx = R_ref · ADC / (1024 − ADC)**, no Vcc dependence. Below 50 Ω it beeps as a continuity tester.
+      - **CAP:** the RC timing meter from Unit 3.
+      - **FREQ:** gate counting for ≥ 100 Hz, period timing below — the automatic choice from Unit 9.
+
+      ### Where is the ohmmeter accurate?
+      A divider's output changes fastest when Rx ≈ R_ref. Near the ends, one ADC count covers a big range of resistance: with R_ref = 10 kΩ, 100 Ω gives ADC ≈ 10 (each count ≈ 10 %!) and 1 MΩ gives ADC ≈ 1014 (one count from "OPEN"). Real meters switch reference resistors — *autoranging* — which is the first challenge.
+
+      > ⚠ The volts input is for low-voltage DC only (≤ 20 V, never negative). It is not a mains multimeter and never will be.
+    formulas:
+      - {name: "Volts mode", formula: "V = ADC · Vcc / 1024 · (R_top + R_bottom)/R_bottom"}
+      - {name: "Ohms mode", formula: "Rx = R_ref · ADC / (1024 − ADC)"}
+      - {name: "Cap mode", formula: "C = τ / R_charge"}
+      - {name: "Freq mode", formula: "f = edges / 1 s   or   f = 1 / (t_high + t_low)"}
+    media:
+      - {image: c1_front_end, caption: "All four input front-ends plus the mode button and buzzer. The LCD wiring is as in Unit 11, but with D4–D7 on Arduino pins 4–7."}
+      - {image: u11_lcd, caption: "LCD reference (Unit 11) — for the Bench Meter move LCD D4–D7 to Arduino D4, D5, D6, D7."}
+  labs:
+    - id: build
+      title: Build & Calibrate the Bench Meter
+      goal: Integrate four instruments, calibrate them, and verify them against your multimeter.
+      minutes: 150
+      parts:
+        - "LCD1602 + 2 pots (contrast, test) + 220 Ω"
+        - "4 × 10 kΩ (divider), 10 kΩ (ohms ref), 10 kΩ (cap charge), 220 Ω (discharge)"
+        - "Push button, passive buzzer"
+        - "Test parts: 1 kΩ, 10 kΩ, 100 kΩ resistors, 100 µF capacitor, your 555 from Unit 9"
+      schematic: c1_front_end
+      sketch: c1_bench_meter
+      wiring:
+        - ["LCD RS / E / D4 / D5 / D6 / D7", "D12 / D11 / D4 / D5 / D6 / D7"]
+        - ["mode button", "D3 → GND"]
+        - ["V probe +", "3 × 10 kΩ in series → A0 node → 10 kΩ → GND"]
+        - ["5V", "10 kΩ R_REF → A2 node; ohms probe from A2 node, other probe to GND"]
+        - ["D8", "10 kΩ → A1 node;  D9 → 220 Ω → A1 node; Cx between A1 node and GND"]
+        - ["frequency input (0–5 V)", "D2"]
+        - ["D10", "passive buzzer → GND"]
+      steps:
+        - "Build and test the LCD alone first (upload the Unit 11 dashboard with the pin numbers changed to 12, 11, 4, 5, 6, 7)."
+        - "Build the front-ends one at a time. Measure every resistor with your multimeter and write the real values down."
+        - type: numeric
+          q: "Your divider is 3 × 10 kΩ on top and 10 kΩ at the bottom. What is DIVIDER_RATIO?"
+          answer: 4
+          calc: "(30e3 + 10e3) / 10e3"
+          unit: ""
+          tol: 0
+          explain: "(R_top + R_bottom)/R_bottom = 40/10 = 4. With your measured values it'll be something like 3.98–4.03."
+        - "Enter DIVIDER_RATIO, R_REF, R_CHARGE (measured) and BANDGAP_mV (from Unit 1) at the top of c1_bench_meter. Upload."
+        - type: measure
+          q: "VOLTS mode: probe the Arduino's own 3.3V pin."
+          expected: 3.3
+          calc: "3.3"
+          unit: V
+          tol: 4%
+          explain: "Compare with your multimeter's reading of the same pin — they should agree within a couple of %."
+        - type: record
+          q: "VOLTS mode: a 9 V battery (and the multimeter's reading in brackets)."
+          unit: V
+        - type: measure
+          q: "OHMS mode: 10 kΩ resistor."
+          expected: 10000
+          calc: "10000"
+          unit: Ω
+          tol: 5%
+          explain: "Best accuracy is near R_ref."
+        - type: measure
+          q: "OHMS mode: 1 kΩ resistor."
+          expected: 1000
+          calc: "1000"
+          unit: Ω
+          tol: 8%
+          explain: "ADC ≈ 93 here: each count ≈ 1 %."
+        - type: measure
+          q: "OHMS mode: 100 kΩ resistor."
+          expected: 100000
+          calc: "100000"
+          unit: Ω
+          tol: 12%
+          explain: "ADC ≈ 931: now one count is about 1.2 % — accuracy falls away from R_ref."
+        - type: numeric
+          q: "Accuracy check: with R_ref = 10 kΩ, what ADC value does a 100 Ω resistor produce?"
+          answer: 10.1
+          calc: "1024 * 100 / (10e3 + 100)"
+          unit: counts
+          tol: 2%
+          explain: "1024 × 100/10 100 ≈ 10 counts → one count ≈ 10 % of the value. Low resistances need a smaller reference."
+        - "Short the ohms probes together: the buzzer should sound (continuity)."
+        - type: measure
+          q: "CAP mode: 100 µF capacitor."
+          expected: 100
+          calc: "100"
+          unit: µF
+          tol: 25%
+          explain: "Same ±20 % parts as Unit 3 — compare with your Unit 3 reading of the same capacitor."
+        - type: record
+          q: "FREQ mode: your fast 555 from Unit 9 (OUT → D2)."
+          unit: Hz
+        - type: record
+          q: "FREQ mode: your slow 555 (10 µF). Note it switched to the period method."
+          unit: Hz
+      observe: |
+        One box, four instruments, each one traceable to physics you've measured yourself.
+      troubleshooting:
+        - ["LCD garbage after rewiring", "The sketch uses D4–D7 = Arduino 4, 5, 6, 7 — not the Unit 11 pins."]
+        - ["Volts reads ~4× too low", "DIVIDER_RATIO left at 1, or the probe is connected to A0 directly."]
+        - ["Ohms always OPEN", "A2 node not connected to R_REF, or the probe's ground lead isn't on GND."]
+        - ["Cap mode freezes", "Big caps take seconds; pressing the mode button cancels a slow measurement."]
+      challenges:
+        - "Autoranging ohms: add a 1 kΩ reference from D13 to the A2 node. For low readings drive D13 HIGH (and disconnect the 10 kΩ by making its 5 V come from a pin you set to INPUT). Pick whichever range puts ADC nearest 512."
+        - "Diode mode: drive ~1 mA through the probe (5 V → 3.9 kΩ) and display the voltage across it — read your LEDs' Vf like a real meter."
+        - "HOLD: a long press freezes the display value."
+  quiz:
+    - type: numeric
+      q: "Bench meter volts mode: ADC = 410, Vcc = 4.95 V, ratio 4. Input voltage?"
+      answer: 7.93
+      calc: "410 * 4.95 / 1024 * 4"
+      unit: V
+      tol: 1%
+      explain: "410 × 4.95/1024 = 1.982 V at A0, × 4 = 7.93 V."
+    - type: numeric
+      q: "Maximum safe input voltage with ratio 4 (A0 must stay ≤ 5 V)?"
+      answer: 20
+      calc: "5 * 4"
+      unit: V
+      tol: 0
+      explain: "5 V × 4 = 20 V. Keep a margin: label the input 15 V."
+    - type: mcq
+      q: "Why was the frequency input moved to D2 and the LCD off D2/D3?"
+      options:
+        - "D2 is faster"
+        - "D2/D3 are the Uno's only external-interrupt pins, and the edge counter needs one"
+        - "The LCD can't use D2"
+        - "Random choice"
+      answer: 1
+      explain: "Scarce resources (interrupt pins, timers, PWM, ADC channels) get allocated first."
+    - type: truefalse
+      q: "The ohms mode needs the bandgap Vcc correction to be accurate."
+      answer: false
+      explain: "It's ratiometric: the same 5 V feeds R_ref and the ADC reference, so Vcc cancels."
+  flashcards:
+    - ["Ohmmeter from a divider", "Rx = R_ref · ADC / (1024 − ADC); best accuracy near R_ref"]
+    - ["Autoranging", "Switch reference resistors so the reading lands mid-scale"]
+    - ["Pin budgeting", "Allocate the scarce pins (interrupts, PWM/timers, ADC) first"]
+
+- id: c2
+  number: 2
+  title: Poor Man's Oscilloscope
+  tagline: Sampling, triggering, Nyquist and aliasing — see your circuits move
+  minutes: 150
+  difficulty: 5
+  builds_on: [u03, u07, u09]
+  objectives:
+    - "Trade ADC precision for speed by changing the prescaler"
+    - "Implement a rising-edge trigger and a timebase"
+    - "Measure frequency, duty cycle and Vpp from a buffer of samples"
+    - "Demonstrate aliasing and explain the Nyquist limit"
+  study:
+    body: |
+      An oscilloscope is a fast ADC, a memory buffer, a trigger and a display. You have all four.
+
+      ### Going faster
+      The ADC clock is the 16 MHz system clock divided by a **prescaler** (default 128 → 125 kHz). One conversion takes 13 ADC clocks. Set the prescaler to 16 → 1 MHz ADC clock → 13 µs per conversion, roughly **50–60 k samples/s** with analogRead()'s overhead. The datasheet only guarantees full 10-bit accuracy up to 200 kHz ADC clock — at 1 MHz you lose a couple of effective bits. Speed vs. precision: a real engineering trade.
+
+      ### Trigger
+      Without a trigger every capture starts at a random point and a repeating signal looks like it's sliding around. The sketch waits for the signal to be **below** the trigger level and then **cross above** it (a rising edge), and only then fills the buffer. Every capture now starts at the same point of the waveform → a stable picture. AUTO mode gives up after 100 ms and captures anyway (so you see flat lines too); NORMAL mode only draws when triggered.
+
+      ### Sampling theory in one paragraph
+      You only know the signal at the sample instants. **Nyquist:** to represent a frequency f you must sample faster than **2f**. Sample slower and higher frequencies don't disappear — they **masquerade as lower ones (aliasing)**: a signal at f sampled at f_s shows up at |f − k·f_s| for the nearest whole k. A square wave also contains harmonics at 3f, 5f, 7f…, so to see its *shape* you want f_s ≥ 10× f.
+
+      > ⚠ The probe input is 0–5 V only. The 1 kΩ series resistor limits current if you slip, but it is not protection against higher voltages.
+    formulas:
+      - {name: "ADC clock", formula: "f_ADC = 16 MHz / prescaler; conversion = 13 ADC clocks"}
+      - {name: "Nyquist", formula: "f_s > 2 · f_max"}
+      - {name: "Alias frequency", formula: "f_alias = |f − k·f_s|, k = round(f / f_s)"}
+      - {name: "Capture window", formula: "T = N · Δt"}
+    media:
+      - {image: c2_scope, caption: "Probe through 1 kΩ into A0; the built-in test tone on D5 can be linked in with a jumper."}
+  labs:
+    - id: build
+      title: Build the Scope and Break Nyquist
+      goal: Capture real waveforms, measure them, and watch a fast signal pretend to be a slow one.
+      minutes: 120
+      parts:
+        - "2 × 1 kΩ, jumpers"
+        - "Your 555 (Unit 9) and PWM-RC filter (Unit 3) as test signals"
+      schematic: c2_scope
+      sketch: c2_scope
+      wiring:
+        - ["D5 (test tone)", "1 kΩ → A0"]
+        - ["probe", "1 kΩ → A0 (remove the D5 link when probing other circuits)"]
+        - ["probe ground", "GND of the circuit under test"]
+      steps:
+        - "Link D5 → 1 kΩ → A0. Upload c2_scope. Open Serial Monitor to see the '#' measurement lines, then the Serial Plotter to see the trace."
+        - type: record
+          q: "Sample rate (fs) reported with the fastest timebase."
+          unit: kS/s
+        - type: measure
+          q: "Frequency the scope reports for the 1 000 Hz test tone."
+          expected: 1000
+          calc: "1000"
+          unit: Hz
+          tol: 3%
+          explain: "The scope measures its own real sample interval with micros(), so the frequency comes out right even though fs isn't a round number."
+        - type: numeric
+          q: "At about 16 µs per sample, how long is a 400-sample capture window?"
+          answer: 6.4
+          calc: "400 * 16e-6 * 1000"
+          unit: ms
+          tol: 2%
+          explain: "400 × 16 µs = 6.4 ms → about 6 periods of 1 kHz."
+        - "Probe your fast 555 output (100 nF version) instead of the test tone."
+        - type: measure
+          q: "Duty cycle the scope reports for the 555."
+          expected: 52.4
+          calc: "(1e3 + 10e3) / (1e3 + 2 * 10e3) * 100"
+          unit: "%"
+          tol: 8%
+          explain: "Matches the (R1+R2)/(R1+2R2) prediction and your Unit 9 pulseIn() result."
+        - "Probe the 555's timing capacitor (pin 6). Press '+' until the window shows a few cycles: the shark-fin from Unit 9, now at 687 Hz."
+        - "Probe your PWM-RC filter (1 kΩ + 10 µF) output: see the ripple riding on the DC level. Read Vmin/Vmax."
+        - type: record
+          q: "Ripple Vpp (Vmax − Vmin) on the RC filter."
+          unit: V
+        - "Aliasing: re-link D5 → A0. Press '+' until the timebase is the slowest (fs ≈ 0.5 kS/s). Send 't' until the test tone is 1 000 Hz, then 3 000 Hz."
+        - type: record
+          q: "Frequency the scope reports for the 3 000 Hz tone at the slowest timebase."
+          unit: Hz
+        - type: mcq
+          q: "The scope shows a slow wave even though the tone is 3 kHz. What happened?"
+          options:
+            - "The tone() function is broken"
+            - "Aliasing: sampled far below 2 × 3 kHz, the samples line up with a much lower frequency, |f − k·fs|"
+            - "The trigger is wrong"
+            - "The 1 kΩ resistor filtered it"
+          answer: 1
+          explain: "Every sampled system has this trap. Real scopes and audio ADCs put an anti-aliasing low-pass filter before the ADC."
+      observe: |
+        At full speed you can see a 1 kHz square wave's edges and a 555's ramps. At the slowest timebase a fast signal turns into a convincing — but completely fake — slow one.
+      troubleshooting:
+        - ["Flat line at 0 or 5 V", "Probe not connected, or no common ground with the circuit under test."]
+        - ["Picture slides around", "Trigger level (512 = 2.5 V) is outside the signal's range — the scope fell back to AUTO."]
+        - ["Plotter is unreadable with '#' lines", "Read the measurements in Serial Monitor, the trace in the Plotter, or send 'c' and paste the CSV into a spreadsheet."]
+      challenges:
+        - "Add an adjustable trigger level ('[' / ']') and a falling-edge option."
+        - "Use the ADC's free-running mode with an interrupt to get a perfectly regular sample clock."
+        - "Two channels: alternate A0/A1 sampling. What does that do to each channel's fs?"
+  quiz:
+    - type: numeric
+      q: "Prescaler 16 → ADC clock 1 MHz. Pure conversion time (13 ADC clocks) in µs?"
+      answer: 13
+      calc: "13 / 1e6 * 1e6"
+      unit: µs
+      tol: 0
+      explain: "13 clocks × 1 µs = 13 µs (+ a few µs of analogRead overhead)."
+    - type: numeric
+      q: "fs = 1 000 S/s, signal 1 100 Hz. At what frequency does the alias appear?"
+      answer: 100
+      calc: "abs(1100 - round(1100 / 1000) * 1000)"
+      unit: Hz
+      tol: 0
+      explain: "|1100 − 1 × 1000| = 100 Hz."
+    - type: numeric
+      q: "Minimum sample rate to capture a 4 kHz sine without aliasing (Nyquist)?"
+      answer: 8
+      calc: "2 * 4"
+      unit: kS/s
+      tol: 0
+      explain: "More than 2 × 4 kHz = 8 kS/s — in practice comfortably more."
+    - type: mcq
+      q: "Why does the trigger make a repeating waveform stand still on screen?"
+      options:
+        - "It slows the signal down"
+        - "Each capture starts at the same point of the waveform (same level, same slope)"
+        - "It averages captures"
+        - "It increases the sample rate"
+      answer: 1
+      explain: "Same starting phase every time → the traces overlay perfectly."
+  flashcards:
+    - ["Nyquist criterion", "Sample faster than 2 × the highest frequency present"]
+    - ["Aliasing", "Undersampled f appears at |f − k·fs|"]
+    - ["Trigger", "Start each capture at the same level crossing → stable picture"]
+    - ["ADC prescaler trade-off", "Faster ADC clock → more samples/s but fewer effective bits (>200 kHz)"]

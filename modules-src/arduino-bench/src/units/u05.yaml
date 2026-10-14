@@ -1,0 +1,219 @@
+id: u05
+number: 5
+title: Clean Inputs
+tagline: Floating pins, bouncing contacts and interrupts that don't lie
+minutes: 90
+difficulty: 3
+objectives:
+  - "Explain why an unconnected CMOS input reads random values"
+  - "Know the ATmega's logic thresholds and what a Schmitt trigger is for"
+  - "See contact bounce, then remove it in hardware and in software"
+  - "Write correct interrupt code: short ISRs, volatile, atomic reads"
+
+study:
+  body: |
+    ### A floating input is an antenna
+    A CMOS input has an input resistance in the hundreds of megaohms. If nothing drives it, a few picofarads of stray capacitance and the 50 Hz field from every mains cable in the room decide its state. It reads 0, 1, 0, 1… whatever it likes. Hence the **pull-up** (or pull-down) resistor: a weak, defined default that a button can easily overpower.
+
+    `pinMode(pin, INPUT_PULLUP)` turns on a resistor inside the chip — **20–50 kΩ** on the ATmega328P. Pressed button to GND → LOW. Released → the pull-up pulls it HIGH.
+
+    ### Logic thresholds
+    At Vcc = 5 V the ATmega328P guarantees:
+    - **LOW** if the input is below **0.3·Vcc = 1.5 V**
+    - **HIGH** if it is above **0.6·Vcc = 3.0 V**
+    - In between: undefined.
+
+    Digital inputs also have a **Schmitt trigger**: the threshold going up is higher than the threshold going down (hysteresis — you'll build the same idea in software in Unit 7). A slowly rising voltage therefore produces one clean edge instead of a burst.
+
+    ### Contact bounce
+    A mechanical switch is two springy metal parts slamming together. They bounce for anywhere from tens of microseconds to several milliseconds, making and breaking contact many times. To a microcontroller that runs 16 million instructions a second, one press can look like 5 or 20 presses. Your bounce counter will show the real numbers for your buttons.
+
+    **Hardware debounce:** a capacitor from the pin to GND. The button discharges it instantly, but on release it can only recharge slowly through the pull-up: **τ = R·C**. The voltage needs t = −RC·ln(1 − 0.6) ≈ **0.92·RC** to cross the 3.0 V HIGH threshold — the bounces are over long before that. The Schmitt trigger turns the slow ramp into one edge.
+
+    **Software debounce:** ignore further edges for a "lockout" time after the first one (the reaction timer does this), or only accept a new state after it has been stable for N ms.
+
+    ### Interrupts done right
+    `attachInterrupt(digitalPinToInterrupt(2), isr, FALLING)` runs `isr()` the instant pin 2 falls — in the middle of whatever loop() was doing. On the Uno only **pins 2 and 3** have these external interrupts (others have "pin-change" interrupts, which need more code).
+
+    Rules:
+    1. **Keep ISRs tiny:** grab a timestamp, set a flag, increment a counter. No Serial, no delay().
+    2. Variables shared with loop() must be **`volatile`**, or the compiler may keep a stale copy in a register.
+    3. Multi-byte variables (int, long) are read in several steps on an 8-bit CPU. An interrupt can strike in between and you read half-old, half-new bytes. Copy them inside **`noInterrupts()` … `interrupts()`**.
+    4. `micros()` has a resolution of **4 µs** on a 16 MHz Uno — plenty for a human, but know it.
+
+    Why time a reaction in an interrupt? Because if loop() is busy printing for 3 ms when you press, polling would add up to 3 ms of error. The ISR grabs `micros()` within a few microseconds of the edge.
+  formulas:
+    - {name: "ATmega logic levels (5 V)", formula: "LOW < 1.5 V,  HIGH > 3.0 V"}
+    - {name: "RC debounce time to HIGH", formula: "t = −RC · ln(1 − 0.6) ≈ 0.92·RC"}
+    - {name: "Internal pull-up", formula: "R ≈ 20–50 kΩ"}
+  media:
+    - {image: u05_button, caption: "Button to GND with the internal pull-up; optional 100 nF for hardware debounce. LED on D8 for the reaction timer."}
+
+labs:
+  - id: lab1
+    title: See the Bounce
+    goal: Count how many edges one click really makes — then make them disappear.
+    minutes: 40
+    parts:
+      - "Push button, 100 nF ceramic capacitor"
+      - "A loose jumper wire"
+      - "Arduino Uno"
+    schematic: u05_button
+    sketch: u05_bounce_counter
+    wiring:
+      - ["button leg 1", "D2"]
+      - ["button leg 2", "GND"]
+      - ["loose jumper", "D7 (other end in the air)"]
+    steps:
+      - "Upload u05_bounce_counter. Send 'f' and open the Serial Plotter. Touch the loose D7 wire, hold it near a mains cable, wave your hand."
+      - type: mcq
+        q: "What does the floating D7 do?"
+        options:
+          - "Stays at 0"
+          - "Stays at 1"
+          - "Flips randomly, especially near mains wiring or when touched"
+          - "Reads exactly 0.5"
+        answer: 2
+        explain: "No defined driver → picks up interference. That's why every input needs a pull-up or pull-down."
+      - "Send 'f' again to go back to bounce mode. Press and release the button 10 times, firmly and softly."
+      - type: record
+        q: "Highest 'Edges' count you saw for a single press+release (ideal = 2)."
+        unit: edges
+      - type: record
+        q: "Longest bounce burst length you saw."
+        unit: µs
+      - type: numeric
+        q: "Add a 100 nF capacitor from D2 to GND. With a 35 kΩ pull-up, how long does the pin take to rise from 0 V to the 3.0 V HIGH threshold after release?"
+        answer: 3.21
+        calc: "-35e3 * 100e-9 * log(1 - 0.6) * 1000"
+        unit: ms
+        tol: 3%
+        explain: "τ = 3.5 ms; t = 0.916 τ ≈ 3.2 ms — longer than most bounces."
+      - "Add the capacitor and repeat 10 presses."
+      - type: record
+        q: "Highest 'Edges' count with the capacitor."
+        unit: edges
+    observe: |
+      Without the capacitor, single presses commonly produce 3–20 edges (it depends a lot on the button and how you press). With 100 nF you should see 2 almost every time — one press, one release.
+    troubleshooting:
+      - ["Edges always 1", "You may be pressing and releasing faster than the 50 ms quiet window. Hold the button for half a second."]
+      - ["Nothing printed", "Button not between D2 and GND, or it's a 4-leg button with both legs on the same internal side — rotate it 90°."]
+    challenges:
+      - "Try a 1 µF capacitor (if you have one): τ = 35 ms. Can you click faster than the debounce now? Find the trade-off."
+
+  - id: lab2
+    title: Interrupt-timed Reaction Tester
+    goal: Measure your reaction time to 0.1 ms with timing done inside an interrupt.
+    minutes: 30
+    parts:
+      - "Push button (keep the 100 nF if you like), LED + 220 Ω"
+      - "Passive buzzer (optional)"
+    schematic: u05_button
+    sketch: u05_reaction_timer
+    wiring:
+      - ["D8", "220 Ω → LED → GND"]
+      - ["D2", "button → GND"]
+      - ["D10", "passive buzzer → GND (optional)"]
+    steps:
+      - "Upload u05_reaction_timer. Press to start; when the LED lights, press again as fast as you can."
+      - "Try to cheat: press before the light. The sketch catches it."
+      - type: record
+        q: "Your best reaction time after 10 rounds."
+        unit: ms
+      - type: mcq
+        q: "Why does the sketch only accept a press if the button is still LOW 10 ms after the edge?"
+        options:
+          - "To make the game harder"
+          - "Releasing the button also bounces and creates falling edges; checking the level 10 ms later rejects those"
+          - "Because micros() needs 10 ms to start"
+          - "To save power"
+        answer: 1
+        explain: "Release bounce creates fake FALLING edges. A real press is still held 10 ms later; a release-bounce isn't."
+    observe: |
+      Typical simple visual reaction times are around 200–300 ms. The measurement itself is good to a few microseconds; the variation you see is you.
+    troubleshooting:
+      - ["'Too early!' every time", "The release of your start press is being read as a press: make sure you're on the latest sketch with the 10 ms check."]
+      - ["LED never lights", "LED reversed or on the wrong pin."]
+    challenges:
+      - "Two-player mode: second button on D3 (the Uno's other external interrupt). Whoever presses first after the light wins; print the margin in ms."
+
+quiz:
+  - type: numeric
+    q: "At Vcc = 5 V, above what voltage is an ATmega328P input guaranteed HIGH?"
+    answer: 3.0
+    calc: "0.6 * 5"
+    unit: V
+    tol: 1%
+    explain: "V_IH(min) = 0.6 × Vcc = 3.0 V."
+  - type: mcq
+    q: "Which Uno pins support attachInterrupt() external interrupts?"
+    options: ["All digital pins", "2 and 3", "Only 13", "A0–A5"]
+    answer: 1
+    explain: "INT0 = D2, INT1 = D3. Other pins need pin-change interrupts."
+  - type: codeline
+    q: "The LED never turns on even after many presses. Which line is the bug?"
+    code: |
+      int count = 0;
+      void onPress() { count++; }
+      void setup() {
+        pinMode(2, INPUT_PULLUP);
+        pinMode(13, OUTPUT);
+        attachInterrupt(digitalPinToInterrupt(2), onPress, FALLING);
+      }
+      void loop() {
+        if (count > 10) digitalWrite(13, HIGH);
+      }
+    answer: 1
+    explain: "count must be volatile. Without it the compiler may load count once and never notice the ISR changing it."
+  - type: truefalse
+    q: "It is fine to call Serial.println() and delay() inside an interrupt service routine."
+    answer: false
+    explain: "Both rely on interrupts that are paused while your ISR runs. delay() can hang and Serial can deadlock when its buffer fills. Set a flag instead."
+  - type: mcq
+    q: "Why copy a multi-byte variable shared with an ISR between noInterrupts() and interrupts()?"
+    options:
+      - "It makes the copy faster"
+      - "An 8-bit CPU reads it in pieces; an interrupt in between could give you a half-updated value"
+      - "Because volatile variables are read-only otherwise"
+      - "To reset the Arduino"
+    answer: 1
+    explain: "A 4-byte unsigned long takes several instructions to copy. Pausing interrupts makes the copy atomic."
+  - type: numeric
+    q: "Hardware debounce with a 10 kΩ external pull-up and 1 µF. Time from 0 V to the 3.0 V threshold after release?"
+    answer: 9.16
+    calc: "-10e3 * 1e-6 * log(1 - 0.6) * 1000"
+    unit: ms
+    tol: 3%
+    explain: "τ = 10 ms; 0.916τ ≈ 9.2 ms."
+  - type: fill
+    q: "micros() on a 16 MHz Uno counts in steps of ___ µs."
+    accept: ["4"]
+    explain: "Timer0 ticks every 4 µs (16 MHz / 64 prescaler)."
+  - type: mcq
+    q: "What does a Schmitt-trigger input add compared to a plain threshold?"
+    options:
+      - "A higher voltage limit"
+      - "Hysteresis: different thresholds for rising and falling, so slow or noisy edges give one clean transition"
+      - "A built-in pull-up"
+      - "Faster switching"
+    answer: 1
+    explain: "Two thresholds → noise around one threshold can't cause chattering."
+  - type: order
+    q: "Order the events when you press a button with INPUT_PULLUP and a FALLING interrupt."
+    items:
+      - "Pin rests at HIGH through the internal pull-up"
+      - "Contacts touch and pull the pin below 1.5 V"
+      - "The CPU pauses loop() and runs the ISR"
+      - "The ISR stores micros() and sets a flag"
+      - "loop() later reads the flag and reacts"
+    explain: "Hardware edge → ISR (tiny) → loop() does the slow work."
+
+flashcards:
+  - ["Floating input", "Undefined state; picks up noise. Fix with a pull-up/down."]
+  - ["INPUT_PULLUP value (ATmega328P)", "≈ 20–50 kΩ to Vcc"]
+  - ["Logic thresholds at 5 V", "LOW < 1.5 V, HIGH > 3.0 V"]
+  - ["Contact bounce", "Make/break chatter, µs to several ms after a switch changes"]
+  - ["RC debounce", "Cap to GND; release recharges through pull-up; ~0.92·RC to HIGH"]
+  - ["volatile", "Tells the compiler the variable can change behind its back (ISR)"]
+  - ["Atomic read of shared variable", "noInterrupts(); copy = shared; interrupts();"]
+  - ["External interrupt pins on Uno", "D2 (INT0), D3 (INT1)"]

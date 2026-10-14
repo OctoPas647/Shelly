@@ -1,0 +1,235 @@
+id: u06
+number: 6
+title: Three Pins, Eight Outputs
+tagline: Shift registers, latches, decoupling and the 7-segment display
+minutes: 100
+difficulty: 3
+objectives:
+  - "Explain serial-in / parallel-out and why the 74HC595 has a separate latch"
+  - "Respect per-pin and per-chip current limits when driving LEDs"
+  - "Know why every logic chip gets a 100 nF decoupling capacitor"
+  - "Map segments to bits and build glyphs for a 7-segment display"
+
+study:
+  body: |
+    ### Serial in, parallel out
+    The 74HC595 contains **two** 8-bit registers:
+    1. A **shift register**. Every rising edge on **SHCP** (shift clock, pin 11) moves all bits one place along and takes in a new bit from **DS** (data, pin 14).
+    2. A **storage register (latch)**. A rising edge on **STCP** (pin 12) copies the shift register into it in one go. The outputs Q0–Q7 show the *latch*, not the shift register.
+
+    That separation is the clever part: while you clock 8 new bits in, the outputs don't flicker through the intermediate patterns. You raise the latch once and all 8 outputs change at the same instant.
+
+    Other pins: **/OE** (13) enables the outputs when LOW — PWM it and you dim all 8 LEDs at once. **/MR** (10) clears the shift register when LOW — tie it to 5 V. **Q7'** (9) is the bit that falls off the end: wire it to the next 595's DS and you can chain as many chips as you like, still using only three Arduino pins.
+
+    `shiftOut(data, clock, MSBFIRST, value)` *bit-bangs* this protocol in software. The same chip can also be driven by the Uno's hardware **SPI** (MOSI = D11 → DS, SCK = D13 → SHCP) far faster — a preview of Unit 11.
+
+    ### Current limits — the chip's, not just the LED's
+    74HC595 (TI datasheet): ±35 mA per output, but only **±70 mA total through VCC or GND**. Eight LEDs at 10 mA = 80 mA → over the limit. With **1 kΩ** per LED you get ~3 mA each (24 mA total), still clearly visible with modern LEDs. Always add up the totals.
+
+    ### Decoupling: the 100 nF next to every chip
+    When eight outputs switch at once, the chip suddenly needs current. The breadboard wires back to the Arduino have inductance, so the supply at the chip's pin sags for a moment (V = L·dI/dt again!) — the chip can glitch or reset. A **100 nF ceramic capacitor right across VCC–GND** acts as a tiny local tank that supplies those spikes. Every digital IC on every professional board has one. It costs nothing; leaving it out costs evenings.
+
+    ### 7-segment displays
+    Seven LED bars a–g plus a decimal point (dp). In a **common-cathode** display all cathodes are joined (to GND) and you drive each anode HIGH; common-anode is the reverse (common to +5 V, drive segments LOW). Map Q0→a, Q1→b … Q6→g, Q7→dp, and each digit is one byte: "0" lights a, b, c, d, e, f = bits 0–5 = **0x3F**.
+
+    ```
+       a          bit: 7  6  5  4  3  2  1  0
+      ---         seg: dp g  f  e  d  c  b  a
+    f|   |b
+      -g-          "7" = a b c        = 0x07
+    e|   |c        "8" = all but dp   = 0x7F
+      ---  .dp
+       d
+    ```
+
+    Several digits are **multiplexed**: light digit 1 for 2 ms, then digit 2, and so on. Above ~50–60 refreshes per second your eye blends them (persistence of vision), and you need 8 + N pins instead of 8 × N.
+  formulas:
+    - {name: "LED current per output", formula: "I = (5 V − Vf) / R"}
+    - {name: "595 chip budget", formula: "Σ I(outputs) ≤ 70 mA through VCC/GND"}
+    - {name: "Pins for N chained 595s", formula: "3 pins → 8·N outputs"}
+  media:
+    - {image: u06_595, caption: "74HC595: three control lines from the Arduino, eight LED outputs, 100 nF decoupling cap on VCC."}
+
+labs:
+  - id: lab1
+    title: Binary Counter & Scanner
+    goal: Drive 8 LEDs from 3 pins, watch binary counting, dim everything through /OE.
+    minutes: 45
+    parts:
+      - "74HC595, 100 nF ceramic capacitor"
+      - "8 LEDs + 8 × 1 kΩ"
+      - "Arduino Uno, multimeter"
+    schematic: u06_595
+    sketch: u06_shift_counter
+    wiring:
+      - ["595 pin 14 (DS)", "D11"]
+      - ["595 pin 11 (SHCP)", "D12"]
+      - ["595 pin 12 (STCP)", "D8"]
+      - ["595 pin 13 (/OE)", "D9"]
+      - ["595 pin 10 (/MR) and pin 16 (VCC)", "5V"]
+      - ["595 pin 8 (GND)", "GND"]
+      - ["100 nF", "between pin 16 and pin 8, as close as possible"]
+      - ["Q0 (pin 15), Q1–Q7 (pins 1–7)", "1 kΩ → LED anode; LED cathodes → GND"]
+    steps:
+      - "Find pin 1: the notch or dot. Pins count anticlockwise seen from above. Pin 15 (Q0) is on the SAME side as pin 16 — a classic wiring trap."
+      - type: numeric
+        q: "Predict the current per LED with 1 kΩ and a red LED (Vf 2.0 V)."
+        answer: 3.0
+        calc: "(5 - 2.0) / 1000 * 1000"
+        unit: mA
+        tol: 2%
+        explain: "(5 − 2)/1000 = 3 mA."
+      - type: numeric
+        q: "Worst case, all 8 on: total current through the 595's VCC pin?"
+        answer: 24
+        calc: "8 * (5 - 2.0) / 1000 * 1000"
+        unit: mA
+        tol: 2%
+        explain: "8 × 3 = 24 mA, comfortably under the 70 mA limit."
+      - "Upload u06_shift_counter. In binary-counter mode, check that Q0 blinks fastest and Q7 slowest."
+      - type: measure
+        q: "With an LED lit, measure the voltage across its 1 kΩ resistor (= current in mA)."
+        expected: 3.0
+        calc: "5 - 2.0"
+        unit: V
+        tol: 12%
+        explain: "~2.7–3.2 V is normal: HC outputs sag a little under load, and Vf varies by LED colour."
+      - "Send digits 0–9 to change brightness through /OE. Send 'm' to cycle the patterns."
+      - type: mcq
+        q: "Sending '9' gives full brightness. analogWrite(9, 255 - 255) = 0 makes /OE always LOW. Why does LOW mean ON?"
+        options:
+          - "The LEDs are wired backwards"
+          - "/OE is active-LOW: the bar in the name means the function is active when the pin is low"
+          - "PWM is inverted on pin 9"
+          - "It doesn't — it's a bug"
+        answer: 1
+        explain: "/OE = 'NOT output enable'. Active-low pins are everywhere in logic chips (/MR, /CS, /RESET)."
+      - "Experiment: pull out the 100 nF capacitor and run the 'sparkle' pattern. Usually nothing visible happens on a small breadboard — but on long wires or with more load, missing decoupling causes random glitches. Put it back."
+    observe: |
+      Eight LEDs, three data wires. In the counter pattern each LED blinks at half the rate of the one before it — Q0 is bit 0 of the number.
+    troubleshooting:
+      - ["Nothing lights", "/OE is HIGH (check D9 wiring) or /MR isn't tied to 5 V."]
+      - ["Patterns look shifted/reversed", "Q0 is pin 15, not pin 1. Re-check the right-hand side wiring."]
+      - ["Random garbage", "DS/SHCP/STCP swapped. Data D11 → pin 14, clock D12 → pin 11, latch D8 → pin 12."]
+    challenges:
+      - "Chain a second 595: its DS to the first one's Q7' (pin 9), share SHCP and STCP. Call shiftOut twice per update — 16 outputs, still 3 pins."
+
+  - id: lab2
+    title: Electronic Die
+    goal: Drive a 7-segment display through the 595, roll a fair die, and design your own glyphs.
+    minutes: 35
+    parts:
+      - "1-digit common-cathode 7-segment display"
+      - "8 × 1 kΩ, push button"
+    schematic: u06_595
+    sketch: u06_dice
+    wiring:
+      - ["Q0…Q6", "segments a…g through 1 kΩ each"]
+      - ["Q7", "dp through 1 kΩ"]
+      - ["display common pins (usually 3 and 8)", "GND"]
+      - ["button", "D2 to GND"]
+    steps:
+      - "Identify the segment pins of your display with diode-test mode on your meter: black probe on a common pin, red probe on each other pin — each segment lights faintly."
+      - "Wire it up, upload u06_dice and press the button."
+      - type: numeric
+        q: "Design a glyph: what byte (decimal) shows a capital 'A' (segments a, b, c, e, f, g)?"
+        answer: 119
+        calc: "1 + 2 + 4 + 16 + 32 + 64"
+        unit: ""
+        tol: 0
+        explain: "a=1, b=2, c=4, e=16, f=32, g=64 → 119 = 0x77."
+      - type: numeric
+        q: "And a lowercase 'b' (segments c, d, e, f, g)?"
+        answer: 124
+        calc: "4 + 8 + 16 + 32 + 64"
+        unit: ""
+        tol: 0
+        explain: "4+8+16+32+64 = 124 = 0x7C."
+      - type: record
+        q: "Roll 30 times and count how many sixes you get."
+        unit: sixes
+    observe: |
+      The die spins fast then slows down. The randomness comes from the exact microsecond you press the button — a human is a surprisingly good noise source.
+    troubleshooting:
+      - ["Wrong segments light", "Your display's pinout differs from the usual one; remap using the diode-test results."]
+      - ["Nothing at all", "You may have a common-ANODE display: commons go to 5 V and every byte must be inverted (~value)."]
+    challenges:
+      - "Add the dot as a 'cheated roll' indicator: hold the button > 2 s and secretly force a 6."
+      - "Show 'HELLO' scrolling one letter at a time. Which letters can't a 7-segment display show well?"
+
+quiz:
+  - type: mcq
+    q: "Why does the 74HC595 have a latch (storage register) separate from the shift register?"
+    options:
+      - "To store a backup copy in case of power loss"
+      - "So the outputs change all at once, without showing the bits while they shift through"
+      - "To double the number of outputs"
+      - "Because SPI requires it"
+    answer: 1
+    explain: "Shift 8 bits in quietly, then one latch pulse updates all outputs simultaneously."
+  - type: order
+    q: "Put one update of a 74HC595 in order."
+    items:
+      - "Latch (STCP) LOW"
+      - "Put a bit on DS"
+      - "Pulse SHCP to shift it in — repeat for all 8 bits"
+      - "Latch (STCP) HIGH — outputs update"
+    explain: "This is exactly what writeOutputs() does with shiftOut()."
+  - type: numeric
+    q: "A 7-segment display with 330 Ω per segment (Vf 2.0 V) shows '8.' (all 8 on). Total current?"
+    answer: 72.7
+    calc: "8 * (5 - 2.0) / 330 * 1000"
+    unit: mA
+    tol: 2%
+    explain: "8 × 9.1 mA = 73 mA — just over the 595's 70 mA VCC/GND limit. Use bigger resistors."
+  - type: numeric
+    q: "How many Arduino pins do you need to drive 32 LEDs with chained 595s?"
+    answer: 3
+    calc: "3"
+    unit: pins
+    tol: 0
+    explain: "Four chips in a chain still use only data, clock and latch."
+  - type: numeric
+    q: "What byte (hex as decimal) displays '3' on the a…g = bit 0…6 mapping (segments a, b, c, d, g)?"
+    answer: 79
+    calc: "1 + 2 + 4 + 8 + 64"
+    unit: ""
+    tol: 0
+    explain: "1+2+4+8+64 = 79 = 0x4F."
+  - type: mcq
+    q: "What is the 100 nF capacitor between the 595's VCC and GND for?"
+    options:
+      - "It sets the shift clock speed"
+      - "It supplies the fast current spikes when outputs switch, so the chip's supply doesn't dip"
+      - "Debouncing the latch"
+      - "Filtering the LED brightness"
+    answer: 1
+    explain: "Decoupling (bypass) capacitor: a local charge reservoir close to the chip."
+  - type: truefalse
+    q: "On a common-cathode display you drive a segment HIGH to light it."
+    answer: true
+    explain: "Cathodes are tied to GND; each anode HIGH (through its resistor) lights its segment."
+  - type: codeline
+    q: "The LEDs show the previous value instead of the new one. Which line is wrong?"
+    code: |
+      void writeOutputs(byte value) {
+        digitalWrite(LATCH_PIN, HIGH);
+        shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, value);
+        digitalWrite(LATCH_PIN, LOW);
+      }
+    answer: 2
+    explain: "The latch copies on the RISING edge. Here the rising edge happens BEFORE the new bits are shifted in, so the outputs always show the old byte. Go LOW first, then HIGH after shifting."
+  - type: fill
+    q: "Multiplexing 4 digits works because of ___ of vision."
+    accept: ["persistence"]
+    explain: "Refresh fast enough (> ~50–60 Hz per digit) and the eye blends them."
+
+flashcards:
+  - ["SHCP / STCP on a 595", "Shift clock (moves bits in) / storage clock (latches to outputs)"]
+  - ["/OE on a 595", "Active-LOW output enable — PWM it to dim all outputs"]
+  - ["Q7'", "Serial out — feeds the next 595 in a chain"]
+  - ["74HC595 current limits", "±35 mA per output, ±70 mA total through VCC/GND"]
+  - ["Decoupling capacitor", "100 nF ceramic across every chip's VCC–GND, as close as possible"]
+  - ["Common cathode vs common anode", "CC: commons to GND, drive segments HIGH. CA: commons to +V, drive LOW."]
+  - ["'0' on a,b,c,d,e,f = bits 0–5", "0x3F"]
+  - ["Multiplexing", "Light one digit at a time, fast; needs segments + digits pins instead of segments × digits"]

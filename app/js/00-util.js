@@ -34,6 +34,12 @@ function fmtNum(x, lang, decimals) {
   try { return new Intl.NumberFormat(lang || 'en', { minimumFractionDigits: d, maximumFractionDigits: d }).format(x); }
   catch (e) { return x.toFixed(d); }
 }
+/* A number with up to `digits` significant digits (0.155, 2.381, 18 000), in the content's language */
+function fmtSig(x, lang, digits = 4) {
+  if (x == null || isNaN(x)) return '–';
+  if (Number.isInteger(x)) return fmtNum(x, lang, 0);
+  try { return new Intl.NumberFormat(lang || 'en', { maximumSignificantDigits: digits }).format(x); } catch (e) { return String(+x.toPrecision(digits)); }
+}
 const roundTo = (x, d) => { const p = Math.pow(10, d || 0); return Math.round((x + Number.EPSILON) * p) / p; };
 /* Points like 2.5 or 1.333: whole numbers stay whole, others get up to 2 decimals */
 const fmtPts = (x, lang) => fmtNum(roundTo(x, 2), lang, Number.isInteger(roundTo(x, 2)) ? 0 : (Number.isInteger(roundTo(x, 1)) ? 1 : 2));

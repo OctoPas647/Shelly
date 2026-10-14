@@ -1,0 +1,191 @@
+id: u08
+number: 8
+title: Echoes & Tones
+tagline: Frequency, wavelength and the speed of sound — a sonar theremin
+minutes: 80
+difficulty: 3
+objectives:
+  - "Move fluently between frequency, period and wavelength"
+  - "Measure distance by time of flight and correct for air temperature"
+  - "Generate square-wave tones and understand what tone() borrows from the chip"
+  - "Map a sensor to a musical scale (equal temperament, pentatonic)"
+
+study:
+  body: |
+    ### Frequency, period, wavelength
+    **f = 1 / T**. A wave travelling at speed v has wavelength **λ = v / f**. In air at 20 °C, sound travels at about **343 m/s**:
+    - a 1 kHz tone has λ ≈ 34 cm,
+    - the HC-SR04's 40 kHz ultrasound has λ ≈ 8.6 mm.
+
+    The speed of sound depends on temperature: **c ≈ 331.3 + 0.606·T** m/s (T in °C). From 20 °C to 30 °C it changes by ~1.8 % — and so does your distance reading, unless you correct for it (Unit 7's thermistor can).
+
+    ### Time-of-flight ranging
+    The HC-SR04 sends a short burst of 40 kHz pulses when you give TRIG a 10 µs HIGH pulse. It then raises ECHO and keeps it HIGH until the reflection comes back. The pulse width is the **round-trip** time, so:
+
+    **distance = c · t / 2**
+
+    With c = 343 m/s = 0.0343 cm/µs: distance (cm) ≈ t (µs) / 58.3. One microsecond of timing = 0.17 mm. The real limits are acoustic: a ~15° beam, soft or angled surfaces that don't echo back, ~2 cm minimum range, and leftover echoes — wait ~60 ms between pings.
+
+    `pulseIn(pin, HIGH, timeout)` measures a pulse width in µs. It **blocks** until the pulse ends or the timeout passes — always give it a timeout (30 ms ≈ 5 m round trip).
+
+    ### Making sound
+    - An **active** buzzer has its own oscillator: give it DC and it beeps at one fixed pitch.
+    - A **passive** buzzer is just a piezo disc: *you* supply the waveform, so you choose the pitch.
+
+    `tone(pin, freq)` generates a 50 % square wave using **Timer2**. Side effect: PWM on pins **3 and 11** (also Timer2) stops working while a tone plays. Timers are shared hardware. Knowing which library uses which timer saves hours (Servo uses Timer1 → no PWM on 9 and 10).
+
+    A square wave isn't a pure tone: it contains odd harmonics (3f, 5f, 7f…) — that's why it sounds buzzy.
+
+    ### Music in numbers
+    Equal temperament: each semitone multiplies frequency by **2^(1/12) ≈ 1.0595**, an octave by 2. A4 = 440 Hz, A5 = 880 Hz, C5 ≈ 523 Hz. A **pentatonic** scale (C D E G A) has no "clashing" neighbours, so a theremin quantised to it always sounds musical — that's the trick in this lab.
+  formulas:
+    - {name: "Frequency ↔ period", formula: "f = 1/T"}
+    - {name: "Wavelength", formula: "λ = v / f"}
+    - {name: "Speed of sound", formula: "c ≈ 331.3 + 0.606·T(°C)  m/s"}
+    - {name: "Sonar distance", formula: "d = c · t / 2   (≈ t[µs] / 58 cm)"}
+    - {name: "Semitone", formula: "f(n) = 440 · 2^(n/12)"}
+  media:
+    - {image: u08_sonar, caption: "HC-SR04 on D7/D6, passive buzzer on D8 with a series resistor to tame the volume."}
+
+labs:
+  - id: lab1
+    title: Sonar Theremin
+    goal: Build an ultrasonic rangefinder, check it against a ruler, then play it like an instrument.
+    minutes: 50
+    parts:
+      - "HC-SR04, passive buzzer, 100 Ω resistor"
+      - "Ruler / tape measure, a book or box as a target"
+      - "Optional: the thermistor divider from Unit 7 on A0"
+    schematic: u08_sonar
+    sketch: u08_sonar_theremin
+    wiring:
+      - ["HC-SR04 VCC / GND", "5V / GND"]
+      - ["HC-SR04 Trig", "D7"]
+      - ["HC-SR04 Echo", "D6"]
+      - ["D8", "100 Ω → passive buzzer → GND"]
+    steps:
+      - type: numeric
+        q: "Predict the echo pulse width for a target 30.0 cm away at 20 °C."
+        answer: 1747
+        calc: "2 * 0.300 / (331.3 + 0.606 * 20) * 1e6"
+        unit: µs
+        tol: 2%
+        explain: "c = 343.4 m/s; t = 0.60 m / 343.4 m/s = 1.747 ms."
+      - "Build and upload. Send 'm' to mute while you calibrate. Place a book flat-on exactly 30 cm from the sensor's front face."
+      - type: measure
+        q: "Sensor reading at 30.0 cm."
+        expected: 30
+        calc: "30"
+        unit: cm
+        tol: 5%
+        explain: "Within ±1.5 cm is good for this sensor. Bigger errors: target too small/angled, or measure from the transducer face, not the PCB edge."
+      - type: record
+        q: "Reading with the book at 10 cm."
+        unit: cm
+      - type: record
+        q: "Reading with the book at 100 cm."
+        unit: cm
+      - type: mcq
+        q: "Turn the book to ~45° at 50 cm. What happens and why?"
+        options:
+          - "Reading stays perfect"
+          - "Reading jumps around or fails: the sound reflects away from the sensor like light off an angled mirror"
+          - "Distance halves"
+          - "The buzzer gets louder"
+        answer: 1
+        explain: "Ultrasound reflects specularly from smooth surfaces. Angled targets send the echo elsewhere."
+      - "Send 'm' to unmute and play: move your hand between 5 and 50 cm. Send 'p' to switch between smooth pitch and the pentatonic scale."
+      - type: mcq
+        q: "In smooth mode, notes between scale steps sound 'off'. Why does pentatonic mode always sound musical?"
+        options:
+          - "It plays louder"
+          - "It snaps to notes of a scale with no semitone clashes, so any sequence sounds consonant"
+          - "It uses a different timer"
+          - "It filters the square wave into a sine wave"
+        answer: 1
+        explain: "Quantising a continuous sensor to a scale is how many electronic instruments stay in tune."
+    observe: |
+      Distances are repeatable to a few mm on a flat, hard target. The theremin responds within ~60 ms, limited by the ping interval.
+    troubleshooting:
+      - ["Always -1 (no echo)", "Trig/Echo swapped, or nothing within ~4 m. Point it at a wall."]
+      - ["Random short readings", "Echo from the table: lift the sensor or tilt it slightly up."]
+      - ["Buzzer silent", "Active buzzer instead of passive (a passive one has a visible green PCB under it on many kits), or 'm' muted."]
+    challenges:
+      - "Set USE_THERMISTOR = true with the Unit 7 divider on A0. Warm the air around the sensor with your hand/hair dryer (carefully) and watch the correction."
+      - "Make a parking sensor: beep faster as the distance shrinks, continuous tone under 10 cm."
+
+quiz:
+  - type: numeric
+    q: "Wavelength of the HC-SR04's 40 kHz ultrasound at 20 °C (c = 343.4 m/s)?"
+    answer: 8.59
+    calc: "(331.3 + 0.606 * 20) / 40000 * 1000"
+    unit: mm
+    tol: 2%
+    explain: "343.4 / 40 000 = 8.6 mm."
+  - type: numeric
+    q: "The echo pulse is 5 830 µs. Distance at 20 °C?"
+    answer: 100.1
+    calc: "5830e-6 * (331.3 + 0.606 * 20) / 2 * 100"
+    unit: cm
+    tol: 2%
+    explain: "5.83 ms × 343.4 m/s / 2 = 1.001 m."
+  - type: numeric
+    q: "Your code assumes 20 °C but the air is 30 °C. A target is really at 100 cm. What does the sensor report?"
+    answer: 98.27
+    calc: "100 * (331.3 + 0.606 * 20) / (331.3 + 0.606 * 30)"
+    unit: cm
+    tol: 1%
+    explain: "Faster sound → shorter echo → 100 × 343.4/349.5 ≈ 98.3 cm. A 1.7 % error from temperature alone."
+  - type: mcq
+    q: "Why divide by 2 in d = c·t/2?"
+    options:
+      - "The sensor has two transducers"
+      - "The echo time covers the trip there AND back"
+      - "To convert m to cm"
+      - "Because of the 50 % duty cycle"
+    answer: 1
+    explain: "Round trip = 2d."
+  - type: mcq
+    q: "While tone() is playing on the Uno, which pins lose their PWM?"
+    options: ["5 and 6", "9 and 10", "3 and 11", "None"]
+    answer: 2
+    explain: "tone() takes over Timer2, which also generates PWM on 3 and 11."
+  - type: numeric
+    q: "A4 is 440 Hz. What is the frequency 3 semitones higher (C5)?"
+    answer: 523.25
+    calc: "440 * 2 ** (3/12)"
+    unit: Hz
+    tol: 1%
+    explain: "440 × 2^(3/12) = 523.3 Hz."
+  - type: truefalse
+    q: "An active buzzer can play a melody with tone() exactly like a passive one."
+    answer: false
+    explain: "An active buzzer has its own fixed oscillator. You can only switch it on and off."
+  - type: match
+    q: "Match the frequency to its period."
+    pairs:
+      - ["50 Hz", "20 ms"]
+      - ["1 kHz", "1 ms"]
+      - ["40 kHz", "25 µs"]
+      - ["490 Hz", "≈ 2.04 ms"]
+    explain: "T = 1/f. 490 Hz is the Uno's default PWM frequency."
+  - type: codeline
+    q: "This loop sometimes freezes for a whole second when nothing is in front of the sensor. Which line?"
+    code: |
+      digitalWrite(TRIG, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(TRIG, LOW);
+      unsigned long t = pulseIn(ECHO, HIGH);
+      float cm = t / 58.0;
+    answer: 4
+    explain: "Without a timeout pulseIn waits up to 1 s by default. Use pulseIn(ECHO, HIGH, 30000)."
+
+flashcards:
+  - ["Speed of sound vs temperature", "c ≈ 331.3 + 0.606·T(°C) m/s (343 m/s at 20 °C)"]
+  - ["Sonar distance", "d = c·t/2 ≈ t[µs]/58 cm"]
+  - ["Wavelength", "λ = v/f"]
+  - ["tone() side effect", "Uses Timer2 → no PWM on pins 3 and 11"]
+  - ["Servo library side effect", "Uses Timer1 → no PWM on pins 9 and 10"]
+  - ["Semitone ratio", "2^(1/12) ≈ 1.0595; octave = ×2"]
+  - ["Active vs passive buzzer", "Active: own oscillator, DC on/off. Passive: you drive the waveform."]
+  - ["pulseIn() danger", "Blocks until the pulse ends — always pass a timeout"]

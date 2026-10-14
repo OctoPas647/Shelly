@@ -1,0 +1,249 @@
+id: u04
+number: 4
+title: Small Current, Big Current
+tagline: Transistors as switches — beat the 20 mA pin limit properly
+minutes: 100
+difficulty: 3
+objectives:
+  - "Explain cut-off, active and saturation regions of an NPN transistor"
+  - "Design a base resistor with a 'forced beta' so the transistor really saturates"
+  - "Calculate transistor power dissipation and know when it gets hot"
+  - "Protect switches from inductive kick with a flyback diode"
+
+study:
+  body: |
+    ### Why you need a transistor
+    An Arduino pin is happy at 20 mA. A small motor wants 100–400 mA, an LED strip amps. A transistor lets the pin's small current **control** a big current that comes from a separate supply.
+
+    ### The NPN BJT in three regions
+    Current into the base (I_B) controls current from collector to emitter (I_C).
+    - **Cut-off:** I_B = 0 → I_C ≈ 0. Switch OFF.
+    - **Active:** I_C = β · I_B. β (= h_FE) is roughly 100–300 and varies wildly between parts and with temperature. Great for amplifiers, terrible for switches, because V_CE can be several volts → the transistor dissipates **P = V_CE · I_C** and heats up.
+    - **Saturation:** you push more base current than the load needs. I_C is then limited by the *load*, not by β, and V_CE drops to **0.1–0.3 V**. Switch fully ON, barely warm.
+
+    Base–emitter behaves like a diode: **V_BE ≈ 0.65–0.8 V** when conducting.
+
+    ### Designing the switch (low-side)
+    Put the load between +V and the collector, emitter to GND. Then:
+    1. Find the load current I_C (measure it!).
+    2. Choose a **forced beta** of 10–20 (not the datasheet β): I_B = I_C / 10.
+    3. **R_B = (V_pin − V_BE) / I_B.**
+
+    Example: a 4-LED bank drawing ~53 mA. I_B = 5.3 mA → R_B = (5 − 0.7)/5.3 mA ≈ 810 Ω → use 1 kΩ (4.3 mA, forced β ≈ 12). Saturated, and the pin is relaxed.
+
+    Why **low-side**? The emitter sits at GND, so a 5 V pin can always drive the base 0.7 V above it — even if the load runs on 12 V. A high-side NPN would need its base *above* the load voltage.
+
+    ### Inductive kick
+    A motor is a coil. Coils resist changes in current: **V = L · dI/dt**. When the transistor snaps off, dI/dt is huge and the coil produces a voltage spike — easily tens of volts — that punches through the transistor. A **flyback diode** across the coil (cathode/stripe to +V) gives that current a safe loop to die out in. With PWM you switch hundreds of times a second, so the diode isn't optional.
+
+    ### Beyond the BJT
+    - **Darlington pair:** two BJTs, β ≈ β₁·β₂ (≈ 10 000), but V_BE ≈ 1.4 V and V_CE(sat) ≈ 1 V. Your ULN2003 (Unit 10) is seven of these.
+    - **Logic-level MOSFET** (e.g. IRLZ44N): voltage-controlled, no steady gate current, R_DS(on) of tens of mΩ → amps with no heatsink. Needs a gate resistor (~100 Ω) and a pull-down (~100 kΩ). The modern default for big loads.
+
+    ### Common ground
+    The load supply and the Arduino must share **GND**. Base current flows out of the pin, through B→E, and back to the Arduino through ground. No shared ground, no return path, no switching.
+  formulas:
+    - {name: "Active region", formula: "I_C = β · I_B"}
+    - {name: "Base resistor", formula: "R_B = (V_pin − V_BE) / (I_C / β_forced),  β_forced ≈ 10–20"}
+    - {name: "Transistor dissipation", formula: "P = V_CE · I_C"}
+    - {name: "Inductor voltage", formula: "V = L · dI/dt"}
+    - {name: "Darlington gain", formula: "β ≈ β₁ · β₂"}
+  media:
+    - {image: u04_led_bank, caption: "Four LED branches (each with its own resistor) switched by one NPN on the low side."}
+    - {image: u04_motor, caption: "Motor with flyback diode (stripe towards +). Separate motor supply, shared ground."}
+
+labs:
+  - id: lab1
+    title: The LED Bank
+    goal: Switch more current than a pin may supply, and verify saturation with your meter.
+    minutes: 40
+    parts:
+      - "NPN transistor (PN2222 or S8050)"
+      - "4 × red LED, 4 × 220 Ω, 1 × 1 kΩ"
+      - "Breadboard power module (5 V) or the Uno 5V pin"
+      - "Arduino Uno, multimeter"
+    schematic: u04_led_bank
+    sketch: u04_transistor_switch
+    wiring:
+      - ["D9", "1 kΩ → transistor base"]
+      - ["emitter", "GND"]
+      - ["collector", "bottom of all 4 LED cathodes (common bus)"]
+      - ["each LED anode", "own 220 Ω → +5 V"]
+      - ["power module GND", "Arduino GND (common ground!)"]
+    steps:
+      - "Check your transistor's pinout in its datasheet: PN2222 and S8050 are often E-B-C viewed from the flat side, but makers differ."
+      - type: numeric
+        q: "Predict the total LED current when the transistor is saturated (red Vf = 2.0 V, V_CE(sat) = 0.1 V, 5 V supply)."
+        answer: 52.7
+        calc: "4 * (5 - 2.0 - 0.1) / 220 * 1000"
+        unit: mA
+        tol: 3%
+        explain: "Each branch: (5 − 2.0 − 0.1)/220 = 13.2 mA, ×4 ≈ 53 mA — 2.6× more than a pin should give."
+      - type: numeric
+        q: "Predict the base current with R_B = 1 kΩ (pin 5 V, V_BE 0.7 V)."
+        answer: 4.3
+        calc: "(5 - 0.7) / 1000 * 1000"
+        unit: mA
+        tol: 3%
+        explain: "4.3 mA → forced β ≈ 53/4.3 ≈ 12: solidly saturated."
+      - "Build it. Upload u04_transistor_switch, open Serial Monitor, send 'f' (full on)."
+      - type: measure
+        q: "Measure the voltage across the 1 kΩ base resistor."
+        expected: 4.3
+        calc: "5 - 0.7"
+        unit: V
+        tol: 8%
+        explain: "V_RB / 1 kΩ = base current. ~4.2–4.4 V → 4.2–4.4 mA."
+      - type: measure
+        q: "Measure V_BE (base to emitter)."
+        expected: 0.75
+        calc: "0.75"
+        unit: V
+        tol: 15%
+        explain: "A conducting B-E junction: ~0.65–0.85 V depending on part and current."
+      - type: record
+        q: "Measure V_CE (collector to emitter) with the LEDs on."
+        unit: V
+      - type: mcq
+        q: "Your V_CE reading is about 0.05–0.2 V. What does that tell you?"
+        options:
+          - "The transistor is in the active region"
+          - "The transistor is saturated — fully on, barely dissipating"
+          - "The transistor is broken"
+          - "The LEDs are wired backwards"
+        answer: 1
+        explain: "Saturation = tiny V_CE. Power in the transistor ≈ 0.1 V × 53 mA ≈ 5 mW."
+      - "Send digits 0–9: PWM dims all four LEDs together through one transistor."
+    observe: |
+      One pin, 4.3 mA, controls ~53 mA. The transistor stays cold because V_CE is a tenth of a volt.
+    troubleshooting:
+      - ["LEDs always on", "Collector and emitter swapped, or base shorted to 5 V."]
+      - ["LEDs never light", "Missing common ground, wrong pinout, or LEDs reversed (long leg to the resistor/+5 V)."]
+      - ["One LED much brighter", "That branch has a different resistor or LED colour. Each branch is independent — that's the point."]
+    challenges:
+      - "Replace the 1 kΩ with 100 kΩ (I_B ≈ 43 µA). Measure V_CE now. You've pushed the transistor into the active region — compute its power dissipation."
+
+  - id: lab2
+    title: Motor + Flyback Diode
+    goal: Drive an inductive load safely and see the difference between 'kind of on' and saturated.
+    minutes: 40
+    parts:
+      - "Small DC motor (3–6 V)"
+      - "1N4007 diode"
+      - "NPN transistor, 1 kΩ and 220 Ω resistors"
+      - "Breadboard power module (5 V)"
+    schematic: u04_motor
+    sketch: u04_transistor_switch
+    wiring:
+      - ["power module +5 V", "motor + and diode cathode (stripe)"]
+      - ["motor −", "collector and diode anode"]
+      - ["D9", "R_B → base"]
+      - ["emitter", "GND (shared with the Arduino)"]
+    steps:
+      - "First, without any transistor: connect the motor straight to the power module with the meter in series on the mA range (spin it freely, don't stall it)."
+      - type: record
+        q: "Free-running motor current."
+        unit: mA
+      - "If it's above ~400 mA, stop: use the L293D from Unit 10 or a logic-level MOSFET instead. Otherwise continue."
+      - "Build the circuit with R_B = 1 kΩ and the flyback diode (stripe towards +5 V). Send 'f'."
+      - type: record
+        q: "V_CE with R_B = 1 kΩ, motor running."
+        unit: V
+      - "Swap R_B to 220 Ω (I_B ≈ 20 mA, the pin's comfortable max). Send 'f' again."
+      - type: record
+        q: "V_CE with R_B = 220 Ω."
+        unit: V
+      - type: mcq
+        q: "V_CE got smaller with 220 Ω. Why?"
+        options:
+          - "More base current pushed the transistor deeper into saturation"
+          - "220 Ω limits the motor current"
+          - "The motor slowed down"
+          - "The diode started conducting"
+        answer: 0
+        explain: "With 1 kΩ the forced β may be ~30–50 — only just saturated, or not at all. More I_B → lower V_CE → less heat and more voltage for the motor."
+      - "Send 'r' for a ramp. Listen to the motor at low duty cycles — the hum is the PWM frequency (~490 Hz)."
+    observe: |
+      The motor speed follows the PWM. The transistor stays cool when saturated. The diode never gets warm: it only carries brief current pulses when the transistor switches off.
+    troubleshooting:
+      - ["Arduino resets when the motor starts", "Motor powered from the Uno's 5V: the inrush current dips the rail. Use the power module, common ground."]
+      - ["Motor won't start at low PWM", "Static friction. Below ~30–40 % duty many motors just hum."]
+      - ["Transistor very hot", "Not saturated (V_CE > 0.5 V) or motor current too high — check with the meter, use a MOSFET."]
+    challenges:
+      - "Darlington touch switch: chain two NPNs (emitter of Q1 → base of Q2, collectors together through an LED + 330 Ω to 5 V). Touch Q1's base and 5 V with one finger. Your skin's megaohms are enough: β ≈ 10 000."
+
+quiz:
+  - type: numeric
+    q: "A load needs 200 mA. Using forced β = 10 and V_BE = 0.7 V from a 5 V pin, what base resistor do you need?"
+    answer: 215
+    calc: "(5 - 0.7) / (0.200 / 10)"
+    unit: Ω
+    tol: 3%
+    explain: "I_B = 20 mA → R_B = 4.3/0.02 = 215 Ω (use 220 Ω). That's at the pin's comfort limit: a MOSFET would be the better choice."
+  - type: numeric
+    q: "A transistor sits in the active region with V_CE = 2 V and I_C = 200 mA. Power dissipated?"
+    answer: 0.4
+    calc: "2 * 0.200"
+    unit: W
+    tol: 1%
+    explain: "0.4 W in a TO-92 package (max ~0.6 W) is too hot to touch. In saturation (0.2 V) it would be 0.04 W."
+  - type: mcq
+    q: "Which way does a flyback diode go across a motor?"
+    options:
+      - "Cathode (stripe) to the +V side, anode to the transistor side"
+      - "Anode to +V, cathode to the transistor"
+      - "In series with the motor"
+      - "From base to emitter"
+    answer: 0
+    explain: "Normally reverse-biased (does nothing). When the transistor turns off, the coil's current circulates through it."
+  - type: truefalse
+    q: "For a switch you should calculate the base resistor with the transistor's typical datasheet β (e.g. 200)."
+    answer: false
+    explain: "β varies 3× between parts and drops at high current. Design with a forced β of 10–20 so the transistor saturates for sure."
+  - type: mcq
+    q: "Why is the NPN placed on the low side (between load and GND)?"
+    options:
+      - "It's cheaper"
+      - "The emitter is at GND, so a 5 V pin can always drive the base 0.7 V above it, whatever the load voltage"
+      - "High-side switching is impossible"
+      - "So the load is always connected to ground"
+    answer: 1
+    explain: "A high-side NPN's base would need to be above the load supply. High-side switches use PNP/P-MOSFETs."
+  - type: numeric
+    q: "Two transistors with β = 120 and β = 150 form a Darlington. Approximate total β?"
+    answer: 18000
+    calc: "120 * 150"
+    unit: ""
+    tol: 2%
+    explain: "β ≈ β₁ × β₂ = 18 000."
+  - type: multi
+    q: "Which are advantages of a logic-level MOSFET over a BJT for switching a big load? (choose all)"
+    options:
+      - "Almost no steady gate current"
+      - "Very low on-resistance → little heat at high current"
+      - "Needs no ground connection"
+      - "No V_BE diode drop to overcome at the gate"
+    answers: [0, 1]
+    explain: "Gate = capacitor (only current while switching), R_DS(on) of milliohms. It still needs common ground, and the gate needs a threshold voltage (a logic-level one switches fully at 5 V)."
+  - type: codeline
+    q: "With this code the motor never runs at all. Which line causes it?"
+    code: |
+      const byte BASE_PIN = 7;
+      void setup() {
+        pinMode(BASE_PIN, OUTPUT);
+      }
+      void loop() {
+        analogWrite(BASE_PIN, 100);
+      }
+    answer: 1
+    explain: "Pin 7 has no PWM on the Uno. analogWrite(7, 100) just sets it LOW (values < 128 → LOW, ≥ 128 → HIGH). Use a PWM pin: 3, 5, 6, 9, 10, 11."
+
+flashcards:
+  - ["BJT saturation", "I_B more than enough → V_CE ≈ 0.1–0.3 V, I_C set by the load"]
+  - ["Forced beta for switching", "10–20, regardless of datasheet β"]
+  - ["Base resistor", "R_B = (V_pin − 0.7) / I_B"]
+  - ["Transistor heat", "P = V_CE × I_C — small when saturated"]
+  - ["Flyback diode", "Across the coil, stripe to +V; absorbs the V = L·dI/dt spike"]
+  - ["Darlington", "β ≈ β₁β₂, but V_BE ≈ 1.4 V and V_CE(sat) ≈ 1 V"]
+  - ["Uno PWM pins", "3, 5, 6, 9, 10, 11"]
+  - ["Logic-level MOSFET", "Fully on at V_GS = 5 V (or less), tiny R_DS(on), gate resistor + pull-down"]

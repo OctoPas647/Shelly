@@ -65,7 +65,8 @@ A module may have lessons only, exams only, or both.
     { "type": "note", "style": "key", "text": "Правило: …" },
     { "type": "image", "src": "media/scheme.png", "alt": "Схема", "caption": "…" },
     { "type": "audio", "src": "media/poem.mp3", "caption": "Прочит на стихотворението" },
-    { "type": "video", "src": "media/lecture.mp4", "caption": "…" }
+    { "type": "video", "src": "media/lecture.mp4", "caption": "…" },
+    { "type": "code", "title": "blink.ino", "file": "blink.ino", "lang": "cpp", "code": "void setup() {\n  pinMode(13, OUTPUT);\n}" }
   ],
   "practice": { "tasks": [ … ], "scale": "matura", "pass": 0.7 }
 }
@@ -80,6 +81,7 @@ Content blocks (a plain string is a `text` block):
 | `image` | `src`, `alt`, `caption` |
 | `audio` | `src`, `caption`, `transcript` (optional rich text, shown on request) |
 | `video` | `src`, `caption`, `poster` (optional picture) |
+| `code` | `code` (the program, shown exactly as written), `title` (optional, e.g. a file name), `lang` (optional label), `file` (optional plain file name: adds a **Save as a file** button), `caption`. Always has a **Copy** button. |
 
 `src` always points inside the zip (`media/…`). Modules cannot load anything from the internet, so a shared module works offline and cannot track anyone.
 
@@ -115,7 +117,8 @@ Every task has:
 **`text`**: a typed word or phrase. `answer` is a string or a list of accepted answers.
 By default comparison ignores capital letters, extra spaces and final punctuation. `"strict": true` compares exactly (for spelling tasks where a capital letter matters).
 
-**`number`**: a typed number. Accepts `3,5`, `3.5`, `7/2`, `-1,25`. Optional `tolerance` (default exact).
+**`number`**: a typed number. Accepts `3,5`, `3.5`, `7/2`, `-1,25`. Optional `tolerance` (default exact): any answer within ± `tolerance` of `answer` is right.
+Optional `unit` (short text such as `"mA"` or `"Ω"`) is shown after the answer box and in the correct answer.
 
 **`gaps`**: fill the blanks inside a text. Write `[[1]]`, `[[2]]`… in `text`, and give one entry per blank in `gaps`.
 A blank is typed (`"answer": "…"` or a list) or picked from a list (`"options": […], "answer": index`). Each blank is worth `points / number of blanks`.
@@ -195,6 +198,9 @@ Used in prompts, options, explanations, passages and lesson text.
 | `> text` | quote |
 | `$x^2 + 1$` | math inside a line |
 | `$$\frac{a}{b}$$` | math on its own line |
+| `` `code` `` | code inside a line |
+| a line with ```` ``` ```` (optionally ```` ```cpp ````), the code, then a line with ```` ``` ```` | a code block, shown exactly as written |
+| `\| a \| b \|` rows with a `\|---\|---\|` line under the first | a table; `:---:` centres a column, `\\|` is a literal \| inside a cell |
 | `\$` | a real dollar sign |
 
 Math uses LaTeX (KaTeX). Text inside math can be Cyrillic: `$\text{лице} = a \cdot b$`.

@@ -1,0 +1,231 @@
+id: u11
+number: 11
+title: Talking Chips
+tagline: UART, I²C, SPI — and a serial link made of light that you decode yourself
+minutes: 120
+difficulty: 4
+objectives:
+  - "Draw a UART frame bit by bit and explain why the receiver samples mid-bit"
+  - "Compute data rates and clock-tolerance limits"
+  - "Compare UART, I²C and SPI: wires, addressing, speed, open-drain vs push-pull"
+  - "Drive an HD44780 LCD in 4-bit mode and create custom characters"
+
+study:
+  body: |
+    ### UART: asynchronous serial
+    There is no shared clock wire. Both ends agree on a **baud rate** in advance, and every byte carries its own synchronisation:
+
+    - The line **idles HIGH**.
+    - **Start bit:** one bit time LOW. The falling edge tells the receiver "a byte starts now".
+    - **8 data bits, least significant bit first.**
+    - Optional parity bit.
+    - **Stop bit(s):** HIGH, at least one bit time. This guarantees the next start bit makes a fresh falling edge.
+
+    "**8N1**" = 8 data, no parity, 1 stop → **10 bits per byte**. So 9600 baud carries 960 bytes/s; 115 200 baud carries 11 520 bytes/s.
+
+    The receiver spots the start edge, waits **1.5 bit times** to land in the middle of data bit 0, then samples once per bit time. Sampling in the middle gives the most margin. Because the two clocks are independent, a small mismatch accumulates over the frame. By the stop bit (9.5 bit times in) the error must stay under half a bit: roughly **±5 % total mismatch**, in practice ±2 % per side.
+
+    The Uno's USB-serial chip (an ATmega16U2) converts this 0/5 V "TTL serial" to USB. Old RS-232 ports use ±3 to ±15 V with inverted logic — never connect those to an Arduino pin directly.
+
+    ### Your light link is a real UART
+    The LED is the transmitter: light = 1 (idle), dark = 0. The LDR is the receiver. The code in this lab implements the frame by hand, with **two stop bits** to give the slow LDR time to recover. When you raise the baud rate, the LDR's response time (Unit 7: tens of ms) eventually blurs neighbouring bits together. You'll find the *bandwidth* of your channel by breaking it.
+
+    ### I²C: two wires, many chips
+    **SDA** (data) and **SCL** (clock), shared by every device on the bus. Lines are **open-drain**: devices can only pull them LOW; **pull-up resistors** (typically 4.7 kΩ) pull them HIGH. That's why two chips can never fight (one HIGH, one LOW = short circuit) — a pull-down always wins safely. Each device has a **7-bit address**, and every byte is answered with an ACK bit. Standard 100 kHz, fast 400 kHz. On the Uno: **A4 = SDA, A5 = SCL**.
+
+    ### SPI: fast and simple
+    **SCK** (clock), **MOSI** (master out), **MISO** (master in) and one **CS** (chip select, active LOW) per device. Full-duplex (data both ways at once), push-pull, no addresses, no ACK, up to 8 MHz on the Uno. On the Uno: D13 SCK, D11 MOSI, D12 MISO, D10 default SS. The 74HC595 from Unit 6 is basically an SPI output device.
+
+    ### The HD44780 LCD (a parallel interface)
+    The 1602 LCD's controller takes 8-bit data, but in **4-bit mode** you send each byte as two nibbles on D4–D7. **RS** selects command (0) or character (1), **E** is the strobe: data is read on its falling edge. **RW** tied to GND = we only write. **V0** sets contrast (a pot) — if you see nothing or black boxes, it's almost always V0. The controller has **8 slots of CGRAM** for your own 5×8-pixel characters.
+  formulas:
+    - {name: "UART throughput (8N1)", formula: "bytes/s = baud / 10"}
+    - {name: "Bit time", formula: "t_bit = 1 / baud"}
+    - {name: "Frame time", formula: "t_frame = (1 + data + parity + stop) / baud"}
+    - {name: "Clock tolerance (sampling mid-bit)", formula: "|mismatch| < 0.5 bit / 9.5 bits ≈ 5 %"}
+  media:
+    - {image: u11_light_link, caption: "TX LED on D7 facing the RX LDR divider on A0. Shield the pair from room light."}
+    - {image: u11_lcd, caption: "LCD1602 in 4-bit mode. The contrast pot's WIPER goes to V0."}
+
+labs:
+  - id: lab1
+    title: Optical Serial Link
+    goal: Send text over light with a UART you can see blinking, find the channel's speed limit and explain it.
+    minutes: 50
+    parts:
+      - "LED + 220 Ω, LDR + 10 kΩ"
+      - "Paper straw / heat-shrink / black tape for a light shield"
+    schematic: u11_light_link
+    sketch: u11_light_link
+    wiring:
+      - ["D7", "220 Ω → LED → GND"]
+      - ["5V", "LDR → A0 node → 10 kΩ → GND"]
+      - ["LED and LDR", "facing each other, 0.5–1 cm apart, inside the shield"]
+    steps:
+      - "Upload u11_light_link and open Serial Monitor (115200, 'Newline'). Read the calibration line: light and dark should differ by at least 80 counts."
+      - type: numeric
+        q: "At 10 baud with 1 start + 8 data + 2 stop bits, how long does one character take?"
+        answer: 1.1
+        calc: "(1 + 8 + 2) / 10"
+        unit: s
+        tol: 1%
+        explain: "11 bits × 100 ms = 1.1 s."
+      - type: order
+        q: "The character 'A' is 0x41 = 0100 0001. Put the light states in the order they're sent (after idle light)."
+        items:
+          - "Start bit: DARK (0)"
+          - "Bit 0 = 1: LIGHT"
+          - "Bits 1–5 = 0: DARK ×5"
+          - "Bit 6 = 1: LIGHT"
+          - "Bit 7 = 0: DARK"
+          - "Stop bits: LIGHT ×2"
+        explain: "LSB first: 1, 0, 0, 0, 0, 0, 1, 0, framed by a dark start bit and light stop bits."
+      - "Type 'hi' and press Enter. Watch the LED stutter and the RX< line fill in letter by letter."
+      - "Raise the speed: '#20', '#30', '#50'… send a test word at each speed."
+      - type: record
+        q: "Highest baud rate that still gets a short word through without framing errors."
+        unit: baud
+      - type: mcq
+        q: "What limits the speed of this link?"
+        options:
+          - "The Arduino's clock"
+          - "The LDR's slow response (tens of ms): at high baud a bit ends before the LDR has finished reacting, so bits smear together"
+          - "Serial Monitor's 115200 baud"
+          - "The 220 Ω resistor"
+        answer: 1
+        explain: "Every channel has a bandwidth. Swap the LDR for a phototransistor (µs response) and the same code goes much faster."
+    observe: |
+      At 10 baud you can literally read the bits as blinks. Somewhere around a few tens of baud, framing errors appear — first on characters with long runs of 0s or 1s, because the LDR settles at a 'deeper' level and takes longer to come back.
+    troubleshooting:
+      - ["WARNING: weak contrast", "Move LED and LDR closer and shield them from room light."]
+      - ["Every character arrives as a framing error", "Thresholds are wrong: reset the board (recalibrates) with the shield in place."]
+      - ["Garbage characters", "Room light leaking in, or a lamp flickering at 100 Hz. Shield better."]
+    challenges:
+      - "Add a parity bit (even parity) to both TX and RX and report parity errors separately from framing errors."
+      - "Connect D7 of this Arduino to A0 of a friend's Arduino through LED/LDR pairs and chat."
+
+  - id: lab2
+    title: LCD Dashboard
+    goal: Wire an HD44780 LCD, set its contrast, and draw an 80-step bar graph with custom characters.
+    minutes: 35
+    parts:
+      - "LCD1602, 2 × 10 kΩ potentiometer, 220 Ω"
+    schematic: u11_lcd
+    sketch: u11_lcd_dashboard
+    wiring:
+      - ["LCD 1 VSS / 2 VDD", "GND / 5V"]
+      - ["LCD 3 V0", "contrast pot wiper (ends to 5V and GND)"]
+      - ["LCD 4 RS / 5 RW / 6 E", "D12 / GND / D11"]
+      - ["LCD 11–14 (D4–D7)", "D5, D4, D3, D2"]
+      - ["LCD 15 A / 16 K", "220 Ω → 5V / GND"]
+      - ["second pot wiper", "A0"]
+    steps:
+      - "Wire power and the contrast pot first, upload anything (or nothing). Turn the contrast pot until the top row shows solid blocks — that proves power + contrast work."
+      - "Wire the data lines, upload u11_lcd_dashboard, and turn the A0 pot."
+      - type: numeric
+        q: "The bar uses 16 cells × 5 pixel columns. How many distinct bar lengths is that (not counting empty)?"
+        answer: 80
+        calc: "16 * 5"
+        unit: ""
+        tol: 0
+        explain: "16 × 5 = 80 levels — far finer than whole cells."
+      - type: mcq
+        q: "Why is the controller limited to 8 custom characters?"
+        options:
+          - "The library only supports 8"
+          - "The HD44780 has 64 bytes of CGRAM: 8 characters × 8 rows of 5 pixels"
+          - "The display has 8 columns"
+          - "Arduino pins"
+        answer: 1
+        explain: "8 slots × 8 bytes. Redefine a slot and every place showing it changes instantly — a classic animation trick."
+    observe: |
+      Smooth bar graph, voltage readout and a running clock. Six data pins drive 32 characters.
+    troubleshooting:
+      - ["Blank screen", "Contrast pot (V0). It's nearly always V0."]
+      - ["Top row of solid blocks, nothing else", "Power and contrast OK, but no init: check RS, E and D4–D7, and that RW is grounded."]
+      - ["Random characters", "D4–D7 order wrong or a loose jumper."]
+    challenges:
+      - "Combine both labs: show the optical link's received text on the LCD, scrolling."
+      - "Use the second line as a 'chart': 16 custom chars can't all be different, so design a sparkline with 8 heights."
+
+quiz:
+  - type: numeric
+    q: "How many bytes per second does 9600 baud 8N1 carry?"
+    answer: 960
+    calc: "9600 / 10"
+    unit: bytes/s
+    tol: 0
+    explain: "10 bits per byte (start + 8 + stop)."
+  - type: numeric
+    q: "Duration of one bit at 115 200 baud, in µs?"
+    answer: 8.68
+    calc: "1e6 / 115200"
+    unit: µs
+    tol: 1%
+    explain: "1/115 200 s ≈ 8.68 µs."
+  - type: mcq
+    q: "Why does a UART receiver sample in the middle of each bit?"
+    options:
+      - "The middle is the brightest"
+      - "It's furthest from both edges, so it tolerates the most clock mismatch and edge noise"
+      - "It's required by USB"
+      - "To save power"
+    answer: 1
+    explain: "Maximum margin on both sides."
+  - type: mcq
+    q: "What do I²C's pull-up resistors make possible?"
+    options:
+      - "Faster than SPI speeds"
+      - "Open-drain lines: any device may pull LOW, nobody ever drives HIGH, so devices can't short each other"
+      - "Analog signals"
+      - "One wire instead of two"
+    answer: 1
+    explain: "Wired-AND bus. The pull-ups set the HIGH level and the rise time."
+  - type: match
+    q: "Match the protocol to its wires."
+    pairs:
+      - ["UART", "TX, RX (+ GND)"]
+      - ["I²C", "SDA, SCL (+ pull-ups)"]
+      - ["SPI", "SCK, MOSI, MISO, CS per device"]
+      - ["HD44780 4-bit", "RS, E, D4–D7"]
+    explain: "All of them also need a common ground."
+  - type: numeric
+    q: "7-bit I²C addresses: how many addresses exist in total?"
+    answer: 128
+    calc: "2 ** 7"
+    unit: ""
+    tol: 0
+    explain: "2⁷ = 128, of which 16 are reserved → 112 usable."
+  - type: truefalse
+    q: "UART sends the least significant bit of each byte first."
+    answer: true
+    explain: "LSB first. (SPI can be either; shiftOut lets you choose.)"
+  - type: numeric
+    q: "Sampling mid-bit, the last sample (stop bit) is 9.5 bit-times after the start edge. Max total clock mismatch before it drifts half a bit, in %?"
+    answer: 5.26
+    calc: "0.5 / 9.5 * 100"
+    unit: "%"
+    tol: 2%
+    explain: "0.5/9.5 ≈ 5.3 %. Split between both ends and leave room for edge uncertainty → aim for < 2 % each."
+  - type: codeline
+    q: "The LCD shows nothing but the backlight. Wiring is fine. Which line is missing something?"
+    code: |
+      #include <LiquidCrystal.h>
+      LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+      void setup() {
+        lcd.print("Hello");
+      }
+      void loop() {}
+    answer: 4
+    explain: "lcd.begin(16, 2) must run before printing — it initialises the controller into 4-bit mode. (And if it's still blank: contrast pot!)"
+
+flashcards:
+  - ["UART idle level", "HIGH"]
+  - ["UART frame 8N1", "Start (0) + 8 data LSB first + stop (1) = 10 bits"]
+  - ["Throughput at 8N1", "baud / 10 bytes per second"]
+  - ["I²C wires on Uno", "SDA = A4, SCL = A5, need pull-ups (≈ 4.7 kΩ)"]
+  - ["SPI pins on Uno", "SCK 13, MISO 12, MOSI 11, SS 10"]
+  - ["Open-drain", "Can only pull LOW; HIGH comes from a pull-up resistor"]
+  - ["HD44780 RS / E", "RS: command (0) or data (1). E: strobe, data latched on falling edge."]
+  - ["LCD blank?", "Adjust V0 contrast first"]
+  - ["CGRAM", "8 custom 5×8 characters in the HD44780"]

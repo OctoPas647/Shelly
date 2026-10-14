@@ -62,6 +62,8 @@ const STR = {
     'btn.ok': 'Добре', 'btn.cancel': 'Отказ', 'btn.close': 'Затвори', 'nav.back': 'Назад', 'nav.close': 'Затвори', 'nav.home': 'Начало', 'err.screen': 'Нещо се обърка на този екран.',
     'n.lessons': { one: '{n} урок', other: '{n} урока' }, 'n.lessonsDone': { one: '{done} от {n} урок', other: '{done} от {n} урока' },
     'n.exams': { one: '{n} изпит', other: '{n} изпита' }, 'n.examsDone': { one: '{n} решен изпит', other: '{n} решени изпита' },
+    'code.code': 'Код', 'code.copy': 'Копирай', 'code.copied': 'Кодът е копиран', 'code.copyFail': 'Не успях да копирам. Задръж пръст върху кода и избери „Копирай“.', 'code.save': 'Запази като файл',
+    'n.lines': { one: '{n} ред', other: '{n} реда' },
     'n.tasks': { one: '{n} задача', other: '{n} задачи' }, 'n.points': { one: '{n} точка', other: '{n} точки' }, 'n.tries': { one: '{n} опит', other: '{n} опита' },
     'n.units': { one: '{n} раздел', other: '{n} раздела' }, 'n.words': { one: '{n} дума', other: '{n} думи' }
   },
@@ -125,6 +127,8 @@ const STR = {
     'btn.ok': 'OK', 'btn.cancel': 'Cancel', 'btn.close': 'Close', 'nav.back': 'Back', 'nav.close': 'Close', 'nav.home': 'Home', 'err.screen': 'Something went wrong on this screen.',
     'n.lessons': { one: '{n} lesson', other: '{n} lessons' }, 'n.lessonsDone': { one: '{done} of {n} lesson', other: '{done} of {n} lessons' },
     'n.exams': { one: '{n} exam', other: '{n} exams' }, 'n.examsDone': { one: '{n} exam taken', other: '{n} exams taken' },
+    'code.code': 'Code', 'code.copy': 'Copy', 'code.copied': 'Code copied', 'code.copyFail': 'Could not copy. Long-press the code and choose Copy.', 'code.save': 'Save as a file',
+    'n.lines': { one: '{n} line', other: '{n} lines' },
     'n.tasks': { one: '{n} task', other: '{n} tasks' }, 'n.points': { one: '{n} point', other: '{n} points' }, 'n.tries': { one: '{n} attempt', other: '{n} attempts' },
     'n.units': { one: '{n} unit', other: '{n} units' }, 'n.words': { one: '{n} word', other: '{n} words' }
   }
