@@ -1,0 +1,7 @@
+vendor-src/
+dist/
+build/
+platforms/android/signing/
+__pycache__/
+node_modules/
+*.log
