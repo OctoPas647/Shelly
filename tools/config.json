@@ -1,0 +1,9 @@
+{
+  "appName": "Shelly",
+  "version": "0.1.0",
+  "androidVersionCode": 1,
+  "androidPackage": "app.shelly",
+  "androidMinSdk": 24,
+  "androidTargetSdk": 34,
+  "themeColor": "#F6F3EC"
+}
