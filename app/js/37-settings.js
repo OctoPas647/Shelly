@@ -1,7 +1,4 @@
 /* ================= Settings ================= */
-Object.assign(STR.bg, { 'set.shuffle': 'Разбъркване на въпросите', 'set.shuffleHint': 'Задачите в тестовете към уроците идват в случаен ред, независимо как са подредени в модула. Пробните изпити запазват реда си.' });
-Object.assign(STR.en, { 'set.shuffle': 'Shuffle questions', 'set.shuffleHint': 'Tasks in lesson tests come in random order, no matter how the module lays them out. Practice exams keep their original order.' });
-
 SCREENS.settings = async el => {
   const s = APP.settings;
   const seg = (key, opts) => `<div class="seg" data-key="${key}">${opts.map(([v, label]) => `<button data-v="${v}" class="${s[key] === v ? 'on' : ''}">${esc(label)}</button>`).join('')}</div>`;
