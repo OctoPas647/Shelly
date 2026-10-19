@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 (unreleased)
+- More picture and media formats are recognised: JPEG XL (`.jxl`), APNG, BMP, ICO, JFIF; `.ogv`, `.weba`, `.3gp`
+- Image blocks (lesson content and task `media`) accept an optional `"fallback"`: a second file (for example a `.webp` or `.png`) that is shown when the phone cannot decode the main picture, such as `.jxl` on an older Android WebView
+- A picture that cannot be decoded and has no fallback now gets the same "missing" look as a missing file
+
 ## 0.2.0
 - New module: **Arduino Bench** (English) — electrical engineering with an Arduino Uno and a breadboard: 13 units, 2 capstone builds, 40 lessons, 243 tasks, 22 Arduino sketches, 20 schematics, and a final exam on its own scale
 - Lessons can show **tables** and **code blocks** in any text
