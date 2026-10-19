@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(Color.parseColor("#F6F3EC"));
         root.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        hideNavigationBar();
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -138,6 +139,18 @@ public class MainActivity extends Activity {
         if (state != null) web.restoreState(state); else web.loadUrl(START);
     }
 
+    /* Hide the system navigation bar while the app is open. Swiping from the bottom edge shows it for a moment, then it hides again. */
+    void hideNavigationBar() {
+        View d = getWindow().getDecorView();
+        d.setSystemUiVisibility(d.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideNavigationBar();
+    }
+
     void openOutside(Uri u) { try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (ActivityNotFoundException ignored) { } }
 
     static String mime(String p) {
@@ -202,7 +215,7 @@ public class MainActivity extends Activity {
         StringBuilder b = new StringBuilder("'");
         for (char ch : s.toCharArray()) {
             if (ch == '\'' || ch == '\\') b.append('\\').append(ch);
-            else if (ch < 32 || ch == ' ' || ch == ' ') b.append(' ');
+            else if (ch < 32 || ch == '\u2028' || ch == '\u2029') b.append(' ');
             else b.append(ch);
         }
         return b.append('\'').toString();
@@ -248,7 +261,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onPause() { super.onPause(); web.onPause(); }
-    @Override protected void onResume() { super.onResume(); web.onResume(); }
+    @Override protected void onResume() { super.onResume(); web.onResume(); hideNavigationBar(); }
     @Override protected void onDestroy() { web.destroy(); super.onDestroy(); }
 
     /* System bars follow the app theme */
