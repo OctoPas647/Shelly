@@ -3,7 +3,7 @@ function blockHTML(b) {
   switch (b.type) {
     case 'text': return `<div class="rt">${rich(b.text)}</div>`;
     case 'note': return `<aside class="note ${esc(b.style || 'tip')}"><span class="note-ic">${icon(b.style === 'warn' ? 'info' : b.style === 'key' ? 'target' : 'bulb')}</span><div class="rt">${rich(b.text)}</div></aside>`;
-    case 'image': return `<figure class="media-img"><img data-media="${esc(b.src)}" alt="${esc(b.alt || '')}" data-zoom>${b.caption ? `<figcaption>${richInline(b.caption)}</figcaption>` : ''}</figure>`;
+    case 'image': return `<figure class="media-img"><img data-media="${esc(b.src)}"${b.fallback ? ` data-fallback="${esc(b.fallback)}"` : ''} alt="${esc(b.alt || '')}" data-zoom>${b.caption ? `<figcaption>${richInline(b.caption)}</figcaption>` : ''}</figure>`;
     case 'audio': return `<figure class="media-audio"><div class="player" data-player><audio preload="metadata" data-media="${esc(b.src)}"></audio>
         <button class="pl-play" aria-label="${esc(t('media.play'))}">${icon('play')}</button>
         <div class="pl-mid"><input type="range" min="0" max="1000" value="0" aria-label="${esc(t('media.seek'))}"><span class="pl-time">0:00</span></div>

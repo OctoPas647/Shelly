@@ -1,7 +1,8 @@
 /* ================= The module library: add, open, share, reset, remove ================= */
-const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml', avif: 'image/avif',
-  mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac',
-  mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', pdf: 'application/pdf', json: 'application/json' };
+const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', jfif: 'image/jpeg', pjpeg: 'image/jpeg', pjp: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml', avif: 'image/avif',
+  jxl: 'image/jxl', apng: 'image/apng', bmp: 'image/bmp', ico: 'image/x-icon',
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac', weba: 'audio/webm',
+  mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg', '3gp': 'video/3gpp', mov: 'video/quicktime', pdf: 'application/pdf', json: 'application/json' };
 const mimeOf = p => MIME[(p.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
 const modCache = new Map();
 
@@ -20,7 +21,7 @@ async function inspectModuleFile(file) {
   if (!mj) { const c = entries.filter(e => /^[^/]+\/module\.json$/.test(e.name)); if (c.length === 1) { mj = c[0]; prefix = mj.name.slice(0, -11); } }
   if (!mj) return { fatal: 'noModule' };
   let json;
-  try { json = JSON.parse(new TextDecoder().decode(await mj.read()).replace(/^﻿/, '')); } catch (e) { return { fatal: 'badJson', detail: e.message }; }
+  try { json = JSON.parse(new TextDecoder().decode(await mj.read()).replace(/^\ufeff/, '')); } catch (e) { return { fatal: 'badJson', detail: e.message }; }
   const files = new Map(entries.filter(e => e.name.startsWith(prefix)).map(e => [e.name.slice(prefix.length), e]));
   const { errors, warnings } = checkModule(json, new Set(files.keys()));
   let progress = null;
@@ -86,12 +87,20 @@ async function mediaURL(id, path) {
   if (!mediaURLs.has(k)) { const b = await idb.get('media', k); if (!b) return ''; mediaURLs.set(k, URL.createObjectURL(b)); }
   return mediaURLs.get(k);
 }
-/* Elements rendered with data-media="path" get their real source here */
+/* Elements rendered with data-media="path" get their real source here.
+   A picture this phone cannot decode (for example .jxl on an older WebView) switches to its data-fallback file, or is marked missing. */
 function hydrateMedia(root, id) {
   root.querySelectorAll('[data-media]').forEach(async el => {
+    const fb = el.dataset.fallback;
     const url = await mediaURL(id, el.dataset.media); el.removeAttribute('data-media');
     if (!url) { el.classList.add('missing'); return; }
     if (el.dataset.poster != null) { el.poster = await mediaURL(id, el.dataset.poster); }
+    if (el.tagName === 'IMG') {
+      el.addEventListener('error', async () => {
+        const alt = fb ? await mediaURL(id, fb) : '';
+        if (alt && el.src !== alt) el.src = alt; else el.classList.add('missing');
+      });
+    }
     el.src = url;
   });
 }
