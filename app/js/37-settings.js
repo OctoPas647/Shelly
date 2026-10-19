@@ -1,4 +1,7 @@
 /* ================= Settings ================= */
+Object.assign(STR.bg, { 'set.shuffle': 'Разбъркване на въпросите', 'set.shuffleHint': 'Задачите в тестовете към уроците идват в случаен ред, независимо как са подредени в модула. Пробните изпити запазват реда си.' });
+Object.assign(STR.en, { 'set.shuffle': 'Shuffle questions', 'set.shuffleHint': 'Tasks in lesson tests come in random order, no matter how the module lays them out. Practice exams keep their original order.' });
+
 SCREENS.settings = async el => {
   const s = APP.settings;
   const seg = (key, opts) => `<div class="seg" data-key="${key}">${opts.map(([v, label]) => `<button data-v="${v}" class="${s[key] === v ? 'on' : ''}">${esc(label)}</button>`).join('')}</div>`;
@@ -10,7 +13,9 @@ SCREENS.settings = async el => {
     <section class="card"><h3>${icon('moon')}${esc(t('set.theme'))}</h3>${seg('theme', [['auto', t('set.auto')], ['light', t('set.light')], ['dark', t('set.dark')]])}</section>
     <section class="card rows">
       <div class="row"><span>${icon('sound')}${esc(t('set.sound'))}</span>${sw('sound')}</div>
-      <div class="row"><span>${icon('bolt')}${esc(t('set.motion'))}</span>${sw('motion')}</div></section>
+      <div class="row"><span>${icon('bolt')}${esc(t('set.motion'))}</span>${sw('motion')}</div>
+      <div class="row"><span>${icon('layers')}${esc(t('set.shuffle'))}</span>${sw('shuffle')}</div>
+      <p class="muted small">${esc(t('set.shuffleHint'))}</p></section>
     <section class="card"><h3>${icon('info')}${esc(t('set.about'))}</h3>
       <p><b>${esc(APP_NAME)}</b> ${esc(APP_VERSION)}</p><p class="muted small">${esc(t('set.aboutText'))}</p>
       ${used ? `<p class="muted small">${esc(t('set.storage', { n: used }))}</p>` : ''}
