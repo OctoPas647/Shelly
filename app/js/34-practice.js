@@ -6,7 +6,8 @@ const PRAISE = ['pr.right1', 'pr.right2', 'pr.right3', 'pr.right4'];
 SCREENS.practice = async (el, { id, lesson }, nav) => {
   const m = await loadModule(id), l = m && m.lessonList.find(x => x.id === lesson);
   if (!l || !l.practice) return back();
-  const tasks = l.practice.tasks, prog = await loadProgress(id), seed = uid(), started = Date.now();
+  /* 'Shuffle questions' in Settings: random task order on every attempt, whatever order the module uses */
+  const tasks = APP.settings.shuffle ? shuffled(l.practice.tasks) : l.practice.tasks, prog = await loadProgress(id), seed = uid(), started = Date.now();
   const P = { i: 0, phase: 'answer', res: [], resp: [], xp: 0, done: false, touched: false };
   moduleLook(el, m); el.setAttribute('lang', m.lang);
   el.innerHTML = `<header class="playbar"><button class="iconbtn" data-back aria-label="${esc(t('nav.close'))}">${icon('close')}</button>${bar(0, 'pbar')}<span class="pcount" lang="${UI_LANG}"></span></header>
