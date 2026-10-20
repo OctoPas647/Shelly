@@ -3,6 +3,7 @@
 ## 0.3.0
 - Android: the system navigation bar is hidden while you are in the app (swipe up from the bottom edge to show it briefly)
 - New setting **Shuffle questions**: tasks in lesson tests come in random order on every attempt, no matter how the module lays them out. Practice exams keep their original order
+- **Install note:** 0.3.0 is signed with a new key, so Android won't install it over 0.2.0. Before uninstalling 0.2.0, share each module **with progress** to keep it, then install 0.3.0 and open those files. Later updates install over 0.3.0 normally
 
 ## 0.2.0
 - New module: **Arduino Bench** (English) — electrical engineering with an Arduino Uno and a breadboard: 13 units, 2 capstone builds, 40 lessons, 243 tasks, 22 Arduino sketches, 20 schematics, and a final exam on its own scale

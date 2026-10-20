@@ -14,6 +14,8 @@ import android.util.Base64;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -130,6 +132,7 @@ public class MainActivity extends Activity {
                 if (fullscreen == null) return;
                 root.removeView(fullscreen); fullscreen = null;
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                hideNavigationBar();
                 if (fullscreenDone != null) fullscreenDone.onCustomViewHidden();
                 fullscreenDone = null;
             }
@@ -139,8 +142,17 @@ public class MainActivity extends Activity {
         if (state != null) web.restoreState(state); else web.loadUrl(START);
     }
 
-    /* Hide the system navigation bar while the app is open. Swiping from the bottom edge shows it for a moment, then it hides again. */
+    /* Hide the system navigation bar while the app is open. Swiping from the bottom edge shows it for a moment, then it hides again.
+       Android 11+ uses the insets controller (the old flags are unreliable there, and some phones bring the bar back on their own). */
     void hideNavigationBar() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                c.hide(WindowInsets.Type.navigationBars());
+            }
+            return;
+        }
         View d = getWindow().getDecorView();
         d.setSystemUiVisibility(d.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
@@ -275,6 +287,15 @@ public class MainActivity extends Activity {
                     w.setStatusBarColor(c);
                     w.setNavigationBarColor(c);
                     web.setBackgroundColor(c);
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        WindowInsetsController ic = w.getInsetsController();
+                        if (ic != null) {
+                            int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                            ic.setSystemBarsAppearance(dark ? 0 : light, light);
+                        }
+                        hideNavigationBar();
+                        return;
+                    }
                     View d = w.getDecorView();
                     int f = d.getSystemUiVisibility();
                     if (dark) f &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR; else f |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
@@ -282,6 +303,7 @@ public class MainActivity extends Activity {
                         if (dark) f &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR; else f |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
                     }
                     d.setSystemUiVisibility(f);
+                    hideNavigationBar();
                 } catch (Exception ignored) { }
             }});
         }

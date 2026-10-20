@@ -8,14 +8,14 @@ The first modules are small demos of the Bulgarian state matriculation exams (Д
 
 | What | File |
 |---|---|
-| Android app | [`downloads/Shelly-0.2.0.apk`](downloads/Shelly-0.2.0.apk) |
+| Android app | [`downloads/Shelly-0.3.0.apk`](downloads/Shelly-0.3.0.apk) |
 | Demo module: ДЗИ по БЕЛ | [`downloads/modules/matura-bel.zip`](downloads/modules/matura-bel.zip) |
 | Demo module: ДЗИ по математика | [`downloads/modules/matura-math.zip`](downloads/modules/matura-math.zip) |
 | Module: Arduino Bench (electronics, English) | [`downloads/modules/arduino-bench.zip`](downloads/modules/arduino-bench.zip) |
 
 Install the APK, download a module `.zip` on the phone, then in Shelly tap **Добави модул** (Add a module) and pick the file. You can also open a module `.zip` straight from a file manager or a chat app with **Open with → Shelly**.
 
-## What the app does (version 0.2)
+## What the app does (version 0.3)
 
 - **Library** of modules, with streak and XP across all of them.
 - **Lessons** with text, notes, tables, formulas (LaTeX), code with a Copy button, pictures, audio and video, each paired with its own test.
